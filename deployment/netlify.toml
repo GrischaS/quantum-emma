@@ -1,39 +1,94 @@
 # ============================================================
-# QUANTUM EMMA — Netlify Configuration
-# © 2026 Grigori Saks | Enterprise Edition
+#  QUANTUM EMMA — Netlify Deploy Config v4.1
+#  © 2026 Grigori Saks — All Rights Reserved — Patent Pending
 # ============================================================
 
 [build]
   command = "npm run build"
-  publish = ".next"
+  publish = "dist"
+  base = "."
 
 [build.environment]
-  NODE_VERSION = "20"
-  NODE_ENV = "production"
+  NODE_VERSION      = "20"
+  NPM_VERSION       = "10"
+  REACT_APP_NAME    = "Quantum Emma"
+  REACT_APP_VERSION = "4.1.0"
+  REACT_APP_ENV     = "production"
 
+# ─── PRODUCTION ──────────────────────────────────────────────
+[context.production]
+  command = "npm run build"
+  [context.production.environment]
+    REACT_APP_ENV = "production"
+
+# ─── BRANCH DEPLOYS ──────────────────────────────────────────
+[context.develop]
+  command = "npm run build"
+  [context.develop.environment]
+    REACT_APP_ENV = "staging"
+
+# ─── SPA ROUTING ─────────────────────────────────────────────
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from   = "/*"
+  to     = "/index.html"
   status = 200
 
+[[redirects]]
+  from   = "/trade"
+  to     = "/Trading"
+  status = 301
+
+[[redirects]]
+  from   = "/wallet"
+  to     = "/Portfolio"
+  status = 301
+
+[[redirects]]
+  from   = "/chat"
+  to     = "/Agents"
+  status = 301
+
+[[redirects]]
+  from   = "/mine"
+  to     = "/Mining"
+  status = 301
+
+[[redirects]]
+  from   = "/stake"
+  to     = "/Staking"
+  status = 301
+
+[[redirects]]
+  from   = "/dao"
+  to     = "/Governance"
+  status = 301
+
+# ─── SECURITY HEADERS ────────────────────────────────────────
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Strict-Transport-Security = "max-age=63072000"
-    X-Owner = "Grigori Saks © 2026 — Quantum Emma"
-    Cache-Control = "public, max-age=31536000, immutable"
+    X-Frame-Options              = "DENY"
+    X-XSS-Protection             = "1; mode=block"
+    X-Content-Type-Options       = "nosniff"
+    Referrer-Policy              = "strict-origin-when-cross-origin"
+    Permissions-Policy           = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security    = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy      = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' wss: https:;"
+    X-Powered-By                 = "Quantum Emma v4.1 — © 2026 Grigori Saks"
 
 [[headers]]
-  for = "/api/*"
+  for = "/assets/*"
   [headers.values]
-    Access-Control-Allow-Origin = "https://quantum-emma.app"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Cache-Control = "public, max-age=31536000, immutable"
 
-[context.production]
-  environment = { NODE_ENV = "production" }
+# ─── FUNCTIONS (Edge) ────────────────────────────────────────
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
 
-[context.deploy-preview]
-  environment = { NODE_ENV = "staging" }
+# ─── DEV SERVER ──────────────────────────────────────────────
+[dev]
+  command   = "npm run dev"
+  port      = 3000
+  publish   = "dist"
+  autoLaunch = false
