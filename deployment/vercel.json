@@ -1,24 +1,18 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "name": "quantum-emma",
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm ci",
+  "framework": "vite",
+  "regions": ["fra1", "iad1"],
   "env": {
-    "NODE_ENV": "production"
+    "REACT_APP_NAME": "Quantum Emma",
+    "REACT_APP_VERSION": "4.1.0",
+    "REACT_APP_ENV": "production",
+    "REACT_APP_TOKEN_SYMBOL": "QEMMA",
+    "REACT_APP_NETWORK": "ethereum"
   },
   "headers": [
     {
@@ -27,16 +21,36 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "X-Powered-By", "value": "Quantum Emma — Meta Genius TR2" },
-        { "key": "X-Owner", "value": "Grigori Saks © 2026" }
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+        { "key": "X-Powered-By", "value": "Quantum Emma v4.1 — © 2026 Grigori Saks" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
   ],
-  "domains": [
-    "quantum-emma.app",
-    "www.quantum-emma.app",
-    "qemma.finance",
-    "www.qemma.finance"
-  ]
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "redirects": [
+    { "source": "/app", "destination": "/", "permanent": false },
+    { "source": "/trade", "destination": "/Trading", "permanent": false },
+    { "source": "/wallet", "destination": "/Portfolio", "permanent": false },
+    { "source": "/chat", "destination": "/Agents", "permanent": false },
+    { "source": "/mine", "destination": "/Mining", "permanent": false },
+    { "source": "/stake", "destination": "/Staking", "permanent": false },
+    { "source": "/dao", "destination": "/Governance", "permanent": false }
+  ],
+  "trailingSlash": false,
+  "cleanUrls": true,
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "develop": true
+    }
+  }
 }
