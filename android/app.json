@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Quantum Emma",
+    "slug": "quantum-emma",
+    "version": "4.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000008"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.grischasaks.quantumemma",
+      "buildNumber": "401"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000008"
+      },
+      "package": "com.grischasaks.quantumemma",
+      "versionCode": 401,
+      "permissions": [
+        "CAMERA",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-camera"
+    ],
+    "extra": {
+      "appName": "Quantum Emma",
+      "version": "4.0.1",
+      "owner": "Grigori Saks",
+      "copyright": "© 2026 Grigori Saks — All Rights Reserved",
+      "network": "ethereum",
+      "token": "QEMMA",
+      "eas": {
+        "projectId": "quantum-emma-enterprise"
+      }
+    },
+    "owner": "grischasaks"
+  }
+}
