@@ -1,37 +1,62 @@
 // ============================================================
-//  QUANTUM EMMA — Hardhat Config
-//  Sepolia Testnet + Ethereum Mainnet
-//  © 2026 Grigori Saks
+//  QUANTUM EMMA — Hardhat Configuration v4.1
+//  © 2026 Grigori Saks — All Rights Reserved — Patent Pending
 // ============================================================
 
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
-const PRIVATE_KEY  = process.env.PRIVATE_KEY  || "0x0000000000000000000000000000000000000000000000000000000000000001";
-const INFURA_KEY   = process.env.INFURA_KEY   || "";
-const ETHERSCAN_KEY= process.env.ETHERSCAN_KEY|| "";
-const ALCHEMY_KEY  = process.env.ALCHEMY_KEY  || "";
+const PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY ||
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // hardhat default
+
+const INFURA_KEY    = process.env.INFURA_API_KEY    || "";
+const ETHERSCAN_KEY = process.env.ETHERSCAN_API_KEY || "";
+const ALCHEMY_KEY   = process.env.ALCHEMY_API_KEY   || "";
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
+  // ─── SOLIDITY ─────────────────────────────────────────────
   solidity: {
     version: "0.8.20",
     settings: {
-      optimizer: { enabled: true, runs: 200 },
-      viaIR: true,
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+      viaIR: false,
     },
   },
+
+  // ─── PATHS ────────────────────────────────────────────────
+  paths: {
+    sources:   "./contracts",
+    tests:     "./contracts/test",
+    cache:     "./cache",
+    artifacts: "./artifacts",
+  },
+
+  // ─── NETWORKS ─────────────────────────────────────────────
   networks: {
-    // ── Local ───────────────────────────────────────────────
+    // Local
+    hardhat: {
+      chainId: 31337,
+      mining: {
+        auto: true,
+        interval: 0,
+      },
+      accounts: {
+        mnemonic: "test test test test test test test test test test test junk",
+        count: 10,
+        accountsBalance: "10000000000000000000000", // 10k ETH each
+      },
+    },
+
     localhost: {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
     },
-    hardhat: {
-      chainId: 31337,
-      gas: "auto",
-    },
-    // ── Sepolia Testnet ─────────────────────────────────────
+
+    // Testnets
     sepolia: {
       url: ALCHEMY_KEY
         ? `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`
@@ -40,13 +65,14 @@ module.exports = {
       chainId: 11155111,
       gasPrice: "auto",
     },
-    // ── Goerli Testnet ──────────────────────────────────────
+
     goerli: {
       url: `https://goerli.infura.io/v3/${INFURA_KEY}`,
       accounts: [PRIVATE_KEY],
       chainId: 5,
     },
-    // ── Ethereum Mainnet ────────────────────────────────────
+
+    // Mainnet
     mainnet: {
       url: ALCHEMY_KEY
         ? `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`
@@ -55,38 +81,46 @@ module.exports = {
       chainId: 1,
       gasPrice: "auto",
     },
-    // ── Polygon ─────────────────────────────────────────────
+
+    // Polygon
     polygon: {
-      url: "https://polygon-rpc.com",
+      url: `https://polygon-mainnet.infura.io/v3/${INFURA_KEY}`,
       accounts: [PRIVATE_KEY],
       chainId: 137,
     },
-    // ── BSC ─────────────────────────────────────────────────
-    bsc: {
-      url: "https://bsc-dataseed.binance.org",
+
+    polygonMumbai: {
+      url: `https://polygon-mumbai.infura.io/v3/${INFURA_KEY}`,
       accounts: [PRIVATE_KEY],
-      chainId: 56,
+      chainId: 80001,
     },
   },
+
+  // ─── GAS REPORTER ─────────────────────────────────────────
+  gasReporter: {
+    enabled: process.env.REPORT_GAS === "true",
+    currency: "USD",
+    gasPrice: 20,
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY || "",
+    outputFile: "gas-report.txt",
+    noColors: true,
+    reportFormat: "terminal",
+  },
+
+  // ─── ETHERSCAN VERIFICATION ───────────────────────────────
   etherscan: {
     apiKey: {
-      mainnet: ETHERSCAN_KEY,
-      sepolia: ETHERSCAN_KEY,
-      goerli:  ETHERSCAN_KEY,
-      polygon: process.env.POLYGONSCAN_KEY || "",
-      bsc:     process.env.BSCSCAN_KEY     || "",
+      mainnet:        ETHERSCAN_KEY,
+      sepolia:        ETHERSCAN_KEY,
+      goerli:         ETHERSCAN_KEY,
+      polygon:        process.env.POLYGONSCAN_API_KEY || "",
+      polygonMumbai:  process.env.POLYGONSCAN_API_KEY || "",
     },
   },
-  gasReporter: {
-    enabled: true,
-    currency: "USD",
-    gasPrice: 21,
-    coinmarketcap: process.env.CMC_API_KEY || "",
-  },
-  paths: {
-    sources:   "./contracts",
-    tests:     "./test",
-    cache:     "./cache",
-    artifacts: "./artifacts",
+
+  // ─── MOCHA (TEST TIMEOUT) ─────────────────────────────────
+  mocha: {
+    timeout: 60000, // 60s per test
+    reporter: "spec",
   },
 };
