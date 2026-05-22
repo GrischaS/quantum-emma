@@ -1,0 +1,117 @@
+# ============================================================
+# QUANTUM EMMA — Azure DevOps CI/CD Pipeline
+# © 2026 Grigori Saks | Enterprise Edition
+# ============================================================
+
+trigger:
+  branches:
+    include:
+      - main
+      - release/*
+  paths:
+    exclude:
+      - README.md
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  nodeVersion: '20.x'
+  dockerRegistry: 'quantumemma.azurecr.io'
+  imageName: 'quantum-emma'
+  imageTag: '$(Build.BuildId)'
+
+stages:
+
+# ── STAGE 1: BUILD & TEST ──────────────────────────────────
+- stage: Build
+  displayName: '🔨 Build & Test'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build Quantum Emma'
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: $(nodeVersion)
+      displayName: 'Install Node.js'
+
+    - script: npm ci
+      displayName: '📦 Install Dependencies'
+
+    - script: npm run lint
+      displayName: '🔍 Lint Check'
+
+    - script: npm run test
+      displayName: '✅ Run Tests'
+
+    - script: npm run build
+      displayName: '🏗️ Build Application'
+      env:
+        NODE_ENV: production
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '.next'
+        artifactName: 'quantum-emma-build'
+
+# ── STAGE 2: DOCKER BUILD ─────────────────────────────────
+- stage: Docker
+  displayName: '🐳 Docker Build & Push'
+  dependsOn: Build
+  jobs:
+  - job: DockerJob
+    steps:
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        command: build
+        dockerfile: deployment/Dockerfile
+        tags: |
+          $(dockerRegistry)/$(imageName):$(imageTag)
+          $(dockerRegistry)/$(imageName):latest
+
+    - task: Docker@2
+      displayName: 'Push to Azure Container Registry'
+      inputs:
+        command: push
+        containerRegistry: 'AzureContainerRegistry'
+        repository: $(imageName)
+        tags: |
+          $(imageTag)
+          latest
+
+# ── STAGE 3: DEPLOY TO AZURE ──────────────────────────────
+- stage: DeployAzure
+  displayName: '☁️ Deploy to Azure'
+  dependsOn: Docker
+  jobs:
+  - deployment: AzureDeployment
+    displayName: 'Deploy to Azure App Service'
+    environment: 'Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy Container to Azure'
+            inputs:
+              azureSubscription: 'QuantumEmma-Azure-Subscription'
+              appName: 'quantum-emma-app'
+              containers: '$(dockerRegistry)/$(imageName):$(imageTag)'
+
+# ── STAGE 4: SMART CONTRACT DEPLOY ────────────────────────
+- stage: SmartContracts
+  displayName: '📜 Deploy Smart Contracts'
+  dependsOn: DeployAzure
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - job: ContractDeploy
+    steps:
+    - script: |
+        cd contracts
+        npx hardhat compile
+        npx hardhat run scripts/deploy.js --network mainnet
+      displayName: '📜 Deploy QEMMA Contracts'
+      env:
+        PRIVATE_KEY: $(DEPLOYER_PRIVATE_KEY)
+        ETHEREUM_RPC_URL: $(ETHEREUM_RPC_URL)
