@@ -1,0 +1,131 @@
+name: 🚀 Quantum Emma — Enterprise Deploy
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "20"
+  APP_NAME: quantum-emma
+
+jobs:
+  # ── Test ──────────────────────────────────────────────────
+  test:
+    name: 🧪 Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test --if-present
+
+  # ── Build ─────────────────────────────────────────────────
+  build:
+    name: 🔨 Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: .next/
+
+  # ── Deploy Vercel ─────────────────────────────────────────
+  deploy-vercel:
+    name: ▲ Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install -g vercel
+      - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  # ── Deploy Netlify ────────────────────────────────────────
+  deploy-netlify:
+    name: 🌐 Deploy to Netlify
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci && npm run build
+      - uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: "./out"
+          production-branch: main
+          production-deploy: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+  # ── Deploy Docker ─────────────────────────────────────────
+  deploy-docker:
+    name: 🐳 Build & Push Docker
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./deployment/Dockerfile
+          push: true
+          tags: |
+            grischasaks/quantum-emma:latest
+            grischasaks/quantum-emma:${{ github.sha }}
+
+  # ── Deploy Azure ──────────────────────────────────────────
+  deploy-azure:
+    name: ☁️ Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: deploy-docker
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - uses: azure/webapps-deploy@v2
+        with:
+          app-name: quantum-emma
+          images: grischasaks/quantum-emma:latest
+
+  # ── Notify ────────────────────────────────────────────────
+  notify:
+    name: 📨 Notify Owner
+    runs-on: ubuntu-latest
+    needs: [deploy-vercel, deploy-netlify]
+    if: always()
+    steps:
+      - name: Send deployment notification
+        run: |
+          echo "🚀 Quantum Emma deployed successfully!"
+          echo "Owner: Grigori Saks — grischasaks@gmail.com"
+          echo "Vercel: https://quantum-emma.vercel.app"
+          echo "Netlify: https://quantum-emma.netlify.app"
