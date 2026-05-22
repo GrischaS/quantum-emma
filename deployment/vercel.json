@@ -1,0 +1,42 @@
+{
+  "name": "quantum-emma",
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "X-Powered-By", "value": "Quantum Emma — Meta Genius TR2" },
+        { "key": "X-Owner", "value": "Grigori Saks © 2026" }
+      ]
+    }
+  ],
+  "domains": [
+    "quantum-emma.app",
+    "www.quantum-emma.app",
+    "qemma.finance",
+    "www.qemma.finance"
+  ]
+}
