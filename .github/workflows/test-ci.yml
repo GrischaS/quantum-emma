@@ -1,0 +1,17 @@
+name: Test CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  hello:
+    name: Hello World
+    runs-on: ubuntu-latest
+    steps:
+      - name: Say hello
+        run: echo "Quantum Emma CI is working!"
+      - name: Show repo info
+        run: |
+          echo "Repo: GrischaS/quantum-emma"
+          echo "Date: $(date)"
+          echo "Node: $(node --version 2>/dev/null || echo 'not installed')"
