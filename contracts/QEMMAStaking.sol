@@ -56,11 +56,11 @@ contract QEMMAStaking {
         owner = msg.sender;
 
         // Initialize 5 lock tiers
-        lockTiers[0] = LockTier(0,         1200,  "FLEXIBLE",   "🔓"); // No lock — 12% APY
-        lockTiers[1] = LockTier(30 days,   1800,  "BRONZE",     "🥉"); // 30d  — 18% APY
-        lockTiers[2] = LockTier(90 days,   2400,  "SILVER",     "🥈"); // 90d  — 24% APY
-        lockTiers[3] = LockTier(180 days,  3600,  "GOLD",       "🥇"); // 180d — 36% APY
-        lockTiers[4] = LockTier(365 days,  6000,  "QUANTUM",    "⚛️"); // 365d — 60% APY
+        lockTiers[0] = LockTier(0,         1200,  "FLEXIBLE",   "TIER_1"); // No lock — 12% APY
+        lockTiers[1] = LockTier(30 days,   1800,  "BRONZE",     "TIER_2"); // 30d  — 18% APY
+        lockTiers[2] = LockTier(90 days,   2400,  "SILVER",     "TIER_3"); // 90d  — 24% APY
+        lockTiers[3] = LockTier(180 days,  3600,  "GOLD",       "TIER_4"); // 180d — 36% APY
+        lockTiers[4] = LockTier(365 days,  6000,  "QUANTUM",    "TIER_5"); // 365d — 60% APY
     }
 
     function stake(uint256 amount, uint8 tierIndex) external {

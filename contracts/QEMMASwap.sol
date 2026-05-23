@@ -40,7 +40,7 @@ contract QEMMASwap {
 
     // ─── ADDRESSES ────────────────────────────────────────────────────────────
     ISwapRouter public constant UNISWAP_V3_ROUTER =
-        ISwapRouter(0xe592427A0AEce92De3Edee1F18E0157C05861564);
+        ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
     address public constant WETH =
         0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant USDT =

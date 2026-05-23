@@ -87,7 +87,7 @@ ${PURPLE}╔══════════════════════�
   // Uniswap V3 Router address (same on all networks)
   const UNISWAP_V3_ROUTER = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
   const Swap = await ethers.getContractFactory("QEMMASwap");
-  const swap = await Swap.deploy(addresses.QEMMAToken, UNISWAP_V3_ROUTER);
+  const swap = await Swap.deploy(addresses.QEMMAToken);
   await swap.waitForDeployment();
   addresses.QEMMASwap = await swap.getAddress();
   log(GREEN, `✅ QEMMASwap deployed: ${addresses.QEMMASwap}`);
@@ -95,7 +95,7 @@ ${PURPLE}╔══════════════════════�
   // ── 6. QEMMAMetaCodex ────────────────────────────────────
   log(PURPLE, "[6/7] Deploying QEMMAMetaCodex.sol...");
   const MetaCodex = await ethers.getContractFactory("QEMMAMetaCodex");
-  const metaCodex = await MetaCodex.deploy(addresses.QEMMAToken);
+  const metaCodex = await MetaCodex.deploy();
   await metaCodex.waitForDeployment();
   addresses.QEMMAMetaCodex = await metaCodex.getAddress();
   log(GREEN, `✅ QEMMAMetaCodex deployed: ${addresses.QEMMAMetaCodex}`);
