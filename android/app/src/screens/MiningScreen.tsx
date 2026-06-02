@@ -1,155 +1,230 @@
 // ============================================================
-//  QUANTUM EMMA — Android Mining Screen
-//  React Native · Expo · © 2026 Grigori Saks
+//  QUANTUM EMMA — Android Mining Terminal v5.0
+//  4 Pools · Live HashRate · Block Explorer · Calculator
+//  © 2026 Grigori Saks — All Rights Reserved
 // ============================================================
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  Dimensions, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { width: W } = Dimensions.get('window');
+const Q = {
+  void:'#000008', bg1:'#06001e', bg2:'#0a002e',
+  plasma:'#7c3aed', neutrino:'#8b5cf6', quark:'#a78bfa', gluon:'#06b6d4',
+  photon:'#00ffff', higgs:'#fbbf24', boson:'#f472b6', lepton:'#4ade80',
+  muon:'#fb923c', tauon:'#f87171', bright:'#f0f4ff', mid:'#94a3b8', dim:'#475569',
+};
 
 const POOLS = [
-  { id:1, name:'POOL ALPHA',  icon:'⚛️', agent:'ALPHA-Q', color:'#8b5cf6', active:true,  reward:78,  fee:1.0, miners:'2,847', fill:73 },
-  { id:2, name:'POOL BETA',   icon:'🧠', agent:'BETA-N',  color:'#06b6d4', active:true,  reward:78,  fee:1.5, miners:'1,924', fill:61 },
-  { id:3, name:'POOL GAMMA',  icon:'🔄', agent:'GAMMA-R', color:'#4ade80', active:true,  reward:78,  fee:0.5, miners:'1,481', fill:54 },
-  { id:4, name:'POOL QUANTUM',icon:'💎', agent:'META-TR2',color:'#fbbf24', active:false, reward:156, fee:2.0, miners:'892',   fill:42 },
+  { name:'Quantum Pool',  color:Q.plasma, reward:'0.48/block', hash:'842 GH/s', fee:'1.0%', diff:'Hard',    daily:12.4 },
+  { name:'Plasma Pool',   color:Q.gluon,  reward:'0.24/block', hash:'421 GH/s', fee:'0.8%', diff:'Medium',  daily:6.2  },
+  { name:'Neutrino Pool', color:Q.higgs,  reward:'0.12/block', hash:'210 GH/s', fee:'0.5%', diff:'Easy',    daily:3.1  },
+  { name:'Genesis Pool',  color:Q.lepton, reward:'0.06/block', hash:'105 GH/s', fee:'0.2%', diff:'Beginner',daily:1.5  },
 ];
 
 export default function MiningScreen() {
-  const [mining, setMining]   = useState(false);
-  const [earned, setEarned]   = useState(0);
-  const [hashrate, setHashrate] = useState(0);
-  const [selectedPool, setSelectedPool] = useState(0);
-  const [blockCount, setBlockCount] = useState(847291);
+  const [mining, setMining]     = useState(false);
+  const [hashRate, setHashRate] = useState(142.6);
+  const [blockN, setBlockN]     = useState(18420);
+  const [earned, setEarned]     = useState(420.0);
+  const [tab, setTab]           = useState<'pools'|'explorer'|'rewards'>('pools');
+  const halvingPct = ((blockN % 210000) / 210000 * 100).toFixed(1);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (mining) {
-        setEarned(e => e + 0.0048);
-        setHashrate(h => 220000 + Math.round(Math.sin(Date.now() * 0.001) * 15000));
-        if (Math.random() > 0.97) setBlockCount(b => b + 1);
-      }
-    }, 200);
-    return () => clearInterval(interval);
+    if (!mining) return;
+    const id = setInterval(() => {
+      setHashRate(h => parseFloat((h + (Math.random() - 0.48) * 1.5).toFixed(1)));
+      if (Math.random() > 0.8) { setBlockN(b => b + 1); setEarned(e => parseFloat((e + 0.24).toFixed(2))); }
+    }, 600);
+    return () => clearInterval(id);
   }, [mining]);
 
+  const blocks = Array.from({ length: 6 }, (_, i) => ({
+    n: blockN - i, reward: (0.48 - i * 0.002).toFixed(3),
+    txs: Math.floor(Math.random() * 18 + 4),
+    time: i === 0 ? 'now' : `${i * 12}s ago`,
+  }));
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#020008','#0a0025','#020008']} style={styles.bg}>
+    <SafeAreaView style={s.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={Q.void} />
+      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>⛏ QEMMA MINING</Text>
-          <Text style={styles.headerSub}>4 POOLS · BITCOIN-STYLE HALVING</Text>
-        </View>
-
-        {/* Mining Control */}
-        <View style={[styles.controlCard, { borderColor: mining ? '#4ade8066' : '#8b5cf644' }]}>
-          <Text style={styles.miningIcon}>{mining ? '⛏' : '💤'}</Text>
-          <Text style={[styles.earnedValue, { color: mining ? '#4ade80' : '#94a3b8' }]}>
-            {earned.toFixed(6)} QEMMA
-          </Text>
-          {mining && (
-            <Text style={styles.hashrateText}>{hashrate.toLocaleString()} H/s</Text>
-          )}
-          <Text style={styles.blockText}>Block #{blockCount.toLocaleString()}</Text>
-          <TouchableOpacity
-            onPress={() => setMining(m => !m)}
-            style={[styles.mineBtn, { backgroundColor: mining ? '#f87171' : '#4ade80' }]}>
-            <Text style={styles.mineBtnText}>{mining ? '⏹ STOP MINING' : '▶ START MINING'}</Text>
+        {/* HEADER */}
+        <LinearGradient colors={[Q.bg1, Q.bg2]} style={s.header}>
+          <Text style={s.headerTitle}>⛏ Mining Terminal v5.0</Text>
+          <View style={s.statsGrid}>
+            {[
+              { l:'Hash Rate', v:`${hashRate} GH/s`, c:Q.plasma, anim:mining },
+              { l:'Block #',   v:`#${blockN.toLocaleString()}`, c:Q.gluon,  anim:false },
+              { l:'Earned',    v:`${earned} QEMMA`,  c:Q.lepton, anim:mining },
+              { l:'Diff',      v:'14.2 TH',           c:Q.higgs,  anim:false },
+            ].map((st, i) => (
+              <View key={i} style={[s.statCard, { borderColor: st.c + (st.anim && mining ? '66' : '22') }]}>
+                <Text style={[s.statVal, { color: st.c }]}>{st.v}</Text>
+                <Text style={s.statLabel}>{st.l}</Text>
+                {st.anim && mining && <View style={[s.dot, { backgroundColor: Q.lepton }]} />}
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity onPress={() => setMining(m => !m)}
+            style={[s.mineBtn, { backgroundColor: mining ? Q.tauon : Q.lepton }]}>
+            <Text style={s.mineBtnText}>{mining ? '⏹ Stop Mining' : '⛏ Start Mining'}</Text>
           </TouchableOpacity>
-        </View>
+        </LinearGradient>
 
-        {/* Pool selector */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💧 SELECT POOL</Text>
-          {POOLS.map((p, i) => (
-            <TouchableOpacity key={p.id} onPress={() => setSelectedPool(i)}
-              style={[styles.poolCard, {
-                borderColor: selectedPool === i ? p.color : p.color + '28',
-                backgroundColor: selectedPool === i ? p.color + '18' : p.color + '0a',
-              }]}>
-              <Text style={styles.poolIcon}>{p.icon}</Text>
-              <View style={styles.poolInfo}>
-                <Text style={[styles.poolName, { color: p.color }]}>{p.name}</Text>
-                <Text style={styles.poolDetail}>
-                  Agent: {p.agent} · Fee: {p.fee}% · {p.miners} miners
-                </Text>
-                <Text style={styles.poolDetail}>
-                  Reward: {p.reward} QEMMA/block · Fill: {p.fill}%
-                </Text>
-              </View>
-              <View style={styles.poolStatus}>
-                <View style={[styles.statusDot, { backgroundColor: p.active ? '#4ade80' : '#f87171' }]} />
-                <Text style={[styles.statusText, { color: p.active ? '#4ade80' : '#f87171' }]}>
-                  {p.active ? 'ACTIVE' : 'OFFLINE'}
-                </Text>
-              </View>
+        {/* HALVING BAR */}
+        <LinearGradient colors={[Q.bg1, Q.bg2]} style={s.halvingCard}>
+          <View style={s.halvingHeader}>
+            <Text style={s.halvingTitle}>⏰ Halving Progress</Text>
+            <Text style={s.halvingPct}>{halvingPct}%</Text>
+          </View>
+          <View style={s.progressBg}>
+            <View style={[s.progressFill, { width: `${halvingPct}%` as any }]} />
+          </View>
+          <Text style={s.halvingInfo}>{(210000 - blockN % 210000).toLocaleString()} blocks remaining</Text>
+        </LinearGradient>
+
+        {/* TABS */}
+        <View style={s.tabRow}>
+          {(['pools','explorer','rewards'] as const).map(t => (
+            <TouchableOpacity key={t} onPress={() => setTab(t)}
+              style={[s.tabBtn, tab === t && s.tabActive]}>
+              <Text style={[s.tabText, tab === t && s.tabTextActive]}>
+                {t === 'pools' ? '⛏ Pools' : t === 'explorer' ? '🔍 Explorer' : '💰 Rewards'}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Halving info */}
-        <View style={styles.halvingCard}>
-          <Text style={styles.halvingTitle}>₿ NEXT HALVING</Text>
-          <View style={styles.halvingRow}>
-            <View style={styles.halvingItem}>
-              <Text style={styles.halvingLabel}>Blocks Left</Text>
-              <Text style={styles.halvingValue}>202,709</Text>
-            </View>
-            <View style={styles.halvingItem}>
-              <Text style={styles.halvingLabel}>Days Left</Text>
-              <Text style={styles.halvingValue}>~203d</Text>
-            </View>
-            <View style={styles.halvingItem}>
-              <Text style={styles.halvingLabel}>Next Reward</Text>
-              <Text style={styles.halvingValue}>39 Q</Text>
-            </View>
+        {/* POOLS */}
+        {tab === 'pools' && (
+          <View style={s.section}>
+            {POOLS.map((p, i) => (
+              <LinearGradient key={i} colors={[p.color + '18', p.color + '08']} style={s.poolCard}>
+                <View style={s.poolHeader}>
+                  <Text style={[s.poolName, { color: p.color }]}>{p.name}</Text>
+                  <View style={[s.diffBadge, { borderColor: p.color + '55', backgroundColor: p.color + '20' }]}>
+                    <Text style={[s.diffText, { color: p.color }]}>{p.diff}</Text>
+                  </View>
+                </View>
+                <View style={s.poolStats}>
+                  {[['Reward',p.reward],['Hash',p.hash],['Fee',p.fee],['Daily',`${p.daily} QEMMA`]].map(([l,v]) => (
+                    <View key={l} style={s.poolStat}>
+                      <Text style={s.poolStatLabel}>{l}</Text>
+                      <Text style={[s.poolStatVal, { color: l === 'Daily' ? Q.lepton : Q.bright }]}>{v}</Text>
+                    </View>
+                  ))}
+                </View>
+                <TouchableOpacity style={[s.joinBtn, { borderColor: p.color + '44', backgroundColor: p.color + '20' }]}>
+                  <Text style={[s.joinBtnText, { color: p.color }]}>⛏ Join {p.name}</Text>
+                </TouchableOpacity>
+              </LinearGradient>
+            ))}
           </View>
-          <View style={styles.halvingBarBg}>
-            <View style={[styles.halvingBarFill, { width: '40.4%' }]} />
-          </View>
-          <Text style={styles.halvingPct}>40.4% of epoch complete</Text>
-        </View>
+        )}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>QEMMAMining.sol · © 2026 Grigori Saks</Text>
-        </View>
-      </LinearGradient>
-    </ScrollView>
+        {/* EXPLORER */}
+        {tab === 'explorer' && (
+          <LinearGradient colors={[Q.bg1, Q.bg2]} style={[s.card, {marginBottom:32}]}>
+            <Text style={s.cardTitle}>🔍 Recent Blocks</Text>
+            {blocks.map((b, i) => (
+              <View key={i} style={[s.blockRow, i === 0 && s.blockRowNew]}>
+                <Text style={s.blockNum}>#{b.n.toLocaleString()}</Text>
+                <Text style={s.blockReward}>{b.reward} QEMMA</Text>
+                <Text style={s.blockTxs}>{b.txs} txs</Text>
+                <Text style={s.blockTime}>{b.time}</Text>
+              </View>
+            ))}
+          </LinearGradient>
+        )}
+
+        {/* REWARDS */}
+        {tab === 'rewards' && (
+          <LinearGradient colors={[Q.bg1, Q.bg2]} style={[s.card, {marginBottom:32}]}>
+            <Text style={s.cardTitle}>💰 Earnings Summary</Text>
+            {[
+              { p:'Today',     v:'12.4 QEMMA', usd:'$7.81',  c:Q.lepton  },
+              { p:'This Week', v:'86.8 QEMMA', usd:'$54.68', c:Q.gluon   },
+              { p:'Month',     v:'372 QEMMA',  usd:'$234',   c:Q.plasma  },
+              { p:'All Time',  v:'4,200 QEMMA',usd:'$2,646', c:Q.higgs   },
+            ].map((r, i) => (
+              <View key={i} style={s.rewardRow}>
+                <Text style={s.rewardLabel}>{r.p}</Text>
+                <View style={{alignItems:'flex-end'}}>
+                  <Text style={[s.rewardVal, {color:r.c}]}>{r.v}</Text>
+                  <Text style={s.rewardUsd}>{r.usd}</Text>
+                </View>
+              </View>
+            ))}
+            <View style={[s.profitBox, {borderColor:Q.lepton+'44'}]}>
+              <Text style={{color:Q.dim,fontSize:11}}>Daily Profit (after power)</Text>
+              <Text style={{color:Q.lepton,fontSize:20,fontWeight:'900'}}>$7.46 / day</Text>
+              <Text style={{color:Q.dim,fontSize:10,marginTop:2}}>Break-even: ~42 days</Text>
+            </View>
+          </LinearGradient>
+        )}
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#020008' },
-  bg:           { flex: 1, minHeight: '100%' },
-  header:       { padding: 24, paddingTop: 48, alignItems: 'center' },
-  headerTitle:  { fontSize: 24, fontWeight: '900', color: '#4ade80', letterSpacing: 2 },
-  headerSub:    { fontSize: 11, color: '#065f46', letterSpacing: 2, marginTop: 4 },
-  controlCard:  { margin: 16, padding: 24, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.4)', borderWidth: 2, alignItems: 'center' },
-  miningIcon:   { fontSize: 52, marginBottom: 12 },
-  earnedValue:  { fontSize: 28, fontWeight: '900', fontFamily: 'monospace', marginBottom: 6 },
-  hashrateText: { fontSize: 14, fontWeight: '700', color: '#4ade80', marginBottom: 6 },
-  blockText:    { fontSize: 12, color: '#475569', marginBottom: 16 },
-  mineBtn:      { paddingHorizontal: 40, paddingVertical: 14, borderRadius: 30 },
-  mineBtnText:  { color: '#000', fontSize: 16, fontWeight: '900', letterSpacing: 2 },
-  section:      { padding: 16 },
-  sectionTitle: { fontSize: 13, fontWeight: '800', color: '#c4b5fd', letterSpacing: 1, marginBottom: 12 },
-  poolCard:     { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 10 },
-  poolIcon:     { fontSize: 24, marginRight: 12 },
-  poolInfo:     { flex: 1 },
-  poolName:     { fontSize: 13, fontWeight: '800', letterSpacing: 1 },
-  poolDetail:   { fontSize: 10, color: '#94a3b8', marginTop: 2 },
-  poolStatus:   { alignItems: 'center' },
-  statusDot:    { width: 8, height: 8, borderRadius: 4 },
-  statusText:   { fontSize: 9, fontWeight: '800', marginTop: 4 },
-  halvingCard:  { margin: 16, padding: 18, borderRadius: 14, backgroundColor: 'rgba(251,146,60,0.1)', borderWidth: 1, borderColor: 'rgba(251,146,60,0.3)' },
-  halvingTitle: { fontSize: 13, fontWeight: '800', color: '#fb923c', letterSpacing: 1, marginBottom: 14 },
-  halvingRow:   { flexDirection: 'row', marginBottom: 14 },
-  halvingItem:  { flex: 1, alignItems: 'center' },
-  halvingLabel: { fontSize: 9, color: '#475569' },
-  halvingValue: { fontSize: 18, fontWeight: '900', color: '#fbbf24', marginTop: 4 },
-  halvingBarBg: { height: 8, backgroundColor: 'rgba(251,146,60,0.1)', borderRadius: 4, overflow: 'hidden' },
-  halvingBarFill:{ height: 8, backgroundColor: '#fb923c', borderRadius: 4 },
-  halvingPct:   { fontSize: 10, color: '#475569', marginTop: 6, textAlign: 'center' },
-  footer:       { padding: 20, alignItems: 'center' },
-  footerText:   { fontSize: 10, color: '#475569' },
+const s = StyleSheet.create({
+  safe:          { flex:1, backgroundColor:Q.void },
+  scroll:        { flex:1 },
+  header:        { padding:16, margin:12, borderRadius:14, borderWidth:1, borderColor:Q.plasma+'22' },
+  headerTitle:   { fontSize:15, fontWeight:'900', color:Q.quark, marginBottom:12, textAlign:'center' },
+  statsGrid:     { flexDirection:'row', flexWrap:'wrap', gap:8, marginBottom:12 },
+  statCard:      { width:(W-60)/2, padding:10, borderRadius:10, borderWidth:1,
+                   backgroundColor:Q.bg2, position:'relative' },
+  statVal:       { fontSize:13, fontWeight:'900' },
+  statLabel:     { fontSize:9, color:Q.dim, marginTop:2 },
+  dot:           { position:'absolute', top:8, right:8, width:6, height:6, borderRadius:3 },
+  mineBtn:       { padding:14, borderRadius:12, alignItems:'center' },
+  mineBtnText:   { fontSize:14, fontWeight:'900', color:Q.void },
+  halvingCard:   { marginHorizontal:12, marginBottom:10, borderRadius:14, padding:14,
+                   borderWidth:1, borderColor:Q.higgs+'33' },
+  halvingHeader: { flexDirection:'row', justifyContent:'space-between', marginBottom:8 },
+  halvingTitle:  { fontSize:12, fontWeight:'700', color:Q.higgs },
+  halvingPct:    { fontSize:12, fontWeight:'700', color:Q.higgs },
+  progressBg:    { height:8, backgroundColor:Q.higgs+'20', borderRadius:4, overflow:'hidden', marginBottom:6 },
+  progressFill:  { height:8, backgroundColor:Q.higgs, borderRadius:4 },
+  halvingInfo:   { fontSize:10, color:Q.dim },
+  tabRow:        { flexDirection:'row', marginHorizontal:12, marginBottom:10,
+                   backgroundColor:Q.bg1, borderRadius:10, padding:4, borderWidth:1, borderColor:Q.plasma+'22' },
+  tabBtn:        { flex:1, padding:8, borderRadius:8, alignItems:'center' },
+  tabActive:     { backgroundColor:Q.plasma },
+  tabText:       { fontSize:10, fontWeight:'700', color:Q.dim },
+  tabTextActive: { color:Q.bright },
+  section:       { paddingHorizontal:12, marginBottom:32 },
+  poolCard:      { borderRadius:14, padding:14, marginBottom:10, borderWidth:1, borderColor:Q.plasma+'22' },
+  poolHeader:    { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:10 },
+  poolName:      { fontSize:14, fontWeight:'800' },
+  diffBadge:     { borderRadius:20, paddingHorizontal:8, paddingVertical:2, borderWidth:1 },
+  diffText:      { fontSize:10, fontWeight:'700' },
+  poolStats:     { flexDirection:'row', gap:6, marginBottom:10 },
+  poolStat:      { flex:1, backgroundColor:Q.bg2, borderRadius:8, padding:6, alignItems:'center' },
+  poolStatLabel: { fontSize:9, color:Q.dim, marginBottom:2 },
+  poolStatVal:   { fontSize:11, fontWeight:'700' },
+  joinBtn:       { padding:10, borderRadius:10, borderWidth:1, alignItems:'center' },
+  joinBtnText:   { fontSize:12, fontWeight:'700' },
+  card:          { marginHorizontal:12, borderRadius:16, padding:16, borderWidth:1, borderColor:Q.plasma+'22' },
+  cardTitle:     { fontSize:13, fontWeight:'800', color:Q.quark, marginBottom:12 },
+  blockRow:      { flexDirection:'row', alignItems:'center', paddingVertical:8,
+                   borderBottomWidth:1, borderBottomColor:Q.plasma+'11', gap:8 },
+  blockRowNew:   { backgroundColor:Q.lepton+'08', borderRadius:6, paddingHorizontal:4 },
+  blockNum:      { color:Q.gluon, fontWeight:'700', fontSize:11, width:70 },
+  blockReward:   { color:Q.lepton, fontSize:11, flex:1 },
+  blockTxs:      { color:Q.mid, fontSize:10, width:40 },
+  blockTime:     { color:Q.dim, fontSize:10, width:45, textAlign:'right' },
+  rewardRow:     { flexDirection:'row', justifyContent:'space-between', alignItems:'center',
+                   paddingVertical:10, borderBottomWidth:1, borderBottomColor:Q.plasma+'11' },
+  rewardLabel:   { fontSize:13, color:Q.dim },
+  rewardVal:     { fontSize:13, fontWeight:'700' },
+  rewardUsd:     { fontSize:10, color:Q.dim, marginTop:2 },
+  profitBox:     { marginTop:12, padding:14, borderRadius:12, borderWidth:1,
+                   backgroundColor:Q.lepton+'0a', alignItems:'center' },
 });
