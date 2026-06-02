@@ -1,187 +1,264 @@
 // ============================================================
-//  QUANTUM EMMA — Android Dashboard Screen v4.0
-//  © 2026 Grigori Saks — All Rights Reserved
+//  QUANTUM EMMA — Android Dashboard v5.0 MEGA UPGRADE
+//  Live Stats · 12-Agent Status · IDO Countdown · AI Signals
+//  © 2026 Grigori Saks — All Rights Reserved — Patent Pending
 // ============================================================
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  Dimensions, Animated, StatusBar,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width: W } = Dimensions.get('window');
+const { width: W, height: H } = Dimensions.get('window');
 const Q = {
-  void:'#000008', bg1:'#06001e',
-  plasma:'#7c3aed', neutrino:'#8b5cf6', gluon:'#06b6d4',
-  higgs:'#fbbf24', lepton:'#4ade80', muon:'#fb923c',
-  tauon:'#f87171', bright:'#f0f4ff', mid:'#94a3b8', dim:'#475569',
+  void:'#000008', deep:'#02000f', bg0:'#030012', bg1:'#06001e', bg2:'#0a002e',
+  plasma:'#7c3aed', neutrino:'#8b5cf6', quark:'#a78bfa', gluon:'#06b6d4',
+  photon:'#00ffff', higgs:'#fbbf24', boson:'#f472b6', lepton:'#4ade80',
+  muon:'#fb923c', tauon:'#f87171', bright:'#f0f4ff', mid:'#94a3b8', dim:'#475569',
 };
+
+const AGENTS = [
+  {name:'ALPHA-7', load:94, color:Q.plasma},
+  {name:'BETA-3',  load:78, color:Q.gluon},
+  {name:'MU-10',   load:100,color:Q.lepton},
+  {name:'ETA-8',   load:85, color:Q.quark},
+  {name:'DELTA-1', load:88, color:Q.photon},
+  {name:'ZETA-5',  load:71, color:Q.muon},
+];
+
+function useCountdown(target: string) {
+  const [time, setTime] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  useEffect(() => {
+    const update = () => {
+      const diff = Math.max(0, new Date(target).getTime() - Date.now());
+      setTime({
+        d: Math.floor(diff / 86400000),
+        h: Math.floor((diff % 86400000) / 3600000),
+        m: Math.floor((diff % 3600000) / 60000),
+        s: Math.floor((diff % 60000) / 1000),
+      });
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [target]);
+  return time;
+}
 
 export default function DashboardScreen() {
   const [tick, setTick] = useState(0);
-  const [earned, setEarned] = useState(0);
+  const [loop, setLoop] = useState(4421);
+  const [coherence, setCoherence] = useState(97.4);
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const countdown = useCountdown('2026-07-15T12:00:00Z');
 
   useEffect(() => {
-    const id = setInterval(() => { setTick(t => t + 1); setEarned(e => e + 0.0001); }, 200);
+    const id = setInterval(() => {
+      setTick(t => t + 1);
+      if (Math.random() > 0.85) setLoop(l => l + 1);
+      if (Math.random() > 0.9) setCoherence(c =>
+        parseFloat(Math.min(99.9, Math.max(90, c + (Math.random() - 0.45) * 0.3)).toFixed(1)));
+    }, 300);
     return () => clearInterval(id);
   }, []);
 
-  const price   = (0.63 + Math.sin(tick * 0.05) * 0.025).toFixed(4);
-  const btc     = (71450 + Math.sin(tick * 0.025) * 280).toFixed(0);
-  const eth     = (3840 + Math.sin(tick * 0.032) * 95).toFixed(0);
-  const block   = 847291 + Math.floor(tick / 20);
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0, duration: 1400, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
-  const coins = [
-    { s: 'QEMMA', p: price,   d: '+8.42%', c: Q.neutrino },
-    { s: 'BTC',   p: `$${btc}`,d: '+2.34%',c: Q.higgs },
-    { s: 'ETH',   p: `$${eth}`,d: '+1.87%',c: Q.gluon },
-    { s: 'BNB',   p: '$612',  d: '+0.91%', c: Q.muon },
-  ];
+  const price  = (0.63 + Math.sin(tick * 0.04) * 0.025).toFixed(4);
+  const change = (2.47 + Math.sin(tick * 0.02) * 0.3).toFixed(2);
+  const isUp   = parseFloat(change) >= 0;
 
-  const stats = [
-    { l: 'Portfolio',    v: '$50,027', c: Q.neutrino, icon: '💼' },
-    { l: 'Staked',       v: '7,500 Q', c: Q.higgs,    icon: '💎' },
-    { l: 'Mined Today',  v: `${earned.toFixed(4)} Q`, c: Q.lepton, icon: '⛏' },
-    { l: 'AI Accuracy',  v: '98.3%',  c: Q.lepton,   icon: '🤖' },
-  ];
+  const pulseOpacity = pulseAnim.interpolate({ inputRange: [0,1], outputRange: [0.5, 1] });
 
-  const modules = [
-    { label: '💹 Trading',    color: Q.gluon,   desc: 'Pro Charts · AI Signals' },
-    { label: '💎 Staking',    color: Q.higgs,   desc: '60% APY · 5 Tiers' },
-    { label: '⛏ Mining',     color: Q.lepton,  desc: '4 Pools · Halving' },
-    { label: '👁 Oracle Chat',color: Q.plasma,  desc: '12 Agents · Predict' },
-    { label: '🗳 Governance', color: Q.gluon,   desc: 'DAO · Treasury' },
-    { label: '🔬 Research',   color: Q.neutrino,desc: '8 Domains · 847 Sources' },
+  const signals = [
+    { asset:'QEMMA', sig:'STRONG BUY', conf:94, color:Q.lepton },
+    { asset:'ETH',   sig:'BUY',        conf:78, color:Q.gluon  },
+    { asset:'BTC',   sig:'HOLD',       conf:62, color:Q.higgs  },
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={['#020008', '#0a0025', '#020008']} style={styles.bg}>
+    <SafeAreaView style={s.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={Q.void} />
+      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
-        <LinearGradient colors={['rgba(124,58,237,0.2)', 'rgba(6,182,212,0.08)']} style={styles.header}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.headerTitle}>QUANTUM EMMA</Text>
-              <Text style={styles.headerSub}>META GENIUS TR2 · ENTERPRISE v4.0</Text>
+        {/* HEADER */}
+        <LinearGradient colors={[Q.deep, Q.bg2, Q.void]} style={s.header}>
+          <Text style={s.headerSub}>⚛️ QUANTUM EMMA v5.0</Text>
+          <Text style={s.headerTitle}>Master Dashboard</Text>
+
+          {/* Live QEMMA price */}
+          <View style={s.priceBox}>
+            <View style={s.priceItem}>
+              <Text style={s.priceLabel}>QEMMA</Text>
+              <Animated.Text style={[s.priceValue, { opacity: pulseOpacity, color: isUp ? Q.lepton : Q.tauon }]}>
+                ${price}
+              </Animated.Text>
+              <Text style={[s.priceChange, { color: isUp ? Q.lepton : Q.tauon }]}>
+                {isUp ? '▲' : '▼'} {change}%
+              </Text>
             </View>
-            <View style={styles.priceBox}>
-              <Text style={styles.priceLabel}>QEMMA</Text>
-              <Text style={styles.priceValue}>${price}</Text>
-              <Text style={styles.priceChange}>▲ +8.42%</Text>
+            <View style={s.divider} />
+            <View style={s.priceItem}>
+              <Text style={s.priceLabel}>Loop #</Text>
+              <Text style={[s.priceValue, { color: Q.photon }]}>#{loop.toLocaleString()}</Text>
+              <Text style={[s.priceChange, { color: Q.dim }]}>{coherence}% coherence</Text>
             </View>
           </View>
-
-          {/* Block info */}
-          <View style={styles.blockRow}>
-            <View style={styles.onlineDot}/>
-            <Text style={styles.blockText}>All Systems Online · Block #{block.toLocaleString()}</Text>
-          </View>
-
-          {/* Ticker */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ticker}>
-            {coins.map((c, i) => (
-              <View key={i} style={[styles.tickerItem, { borderColor: c.c + '44' }]}>
-                <View style={[styles.tickerDot, { backgroundColor: c.c }]}/>
-                <Text style={[styles.tickerSym, { color: c.c }]}>{c.s}</Text>
-                <Text style={styles.tickerPrice}>{c.p}</Text>
-                <Text style={[styles.tickerChange, { color: Q.lepton }]}>{c.d}</Text>
-              </View>
-            ))}
-          </ScrollView>
         </LinearGradient>
 
-        {/* Stats */}
-        <View style={styles.statsGrid}>
-          {stats.map((s, i) => (
-            <View key={i} style={[styles.statCard, { borderColor: s.c + '33', backgroundColor: s.c + '10' }]}>
-              <Text style={styles.statIcon}>{s.icon}</Text>
-              <Text style={styles.statLabel}>{s.l}</Text>
-              <Text style={[styles.statValue, { color: s.c }]}>{s.v}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* HQMLL bar */}
-        <View style={styles.hqmllBox}>
-          <View style={styles.hqmllHeader}>
-            <Text style={styles.hqmllTitle}>⚡ HQMLL — Layer 7 Active</Text>
-            <Text style={styles.hqmllAcc}>98.3%</Text>
-          </View>
+        {/* STAT CARDS */}
+        <View style={s.statsRow}>
           {[
-            { n: 'QUANTUM',  v: 89, c: Q.gluon },
-            { n: 'RECURSIVE',v: 93, c: '#0891b2' },
-            { n: 'OUTPUT',   v: 98, c: Q.higgs },
-          ].map((l, i) => (
-            <View key={i} style={styles.layerRow}>
-              <Text style={[styles.layerName, { color: l.c }]}>{l.n}</Text>
-              <View style={styles.layerBarBg}>
-                <View style={[styles.layerBarFill, { width: `${l.v}%`, backgroundColor: l.c }]}/>
-              </View>
-              <Text style={[styles.layerVal, { color: l.c }]}>{l.v}%</Text>
-            </View>
+            { label: 'Portfolio',    val: '$51,763', color: Q.plasma,   icon: '💼' },
+            { label: 'Staking',      val: '+1,651',  color: Q.lepton,   icon: '🔒' },
+            { label: 'Mining',       val: '420 QEMMA',color: Q.higgs,   icon: '⛏' },
+            { label: 'Agents',       val: '10/12',   color: Q.gluon,    icon: '🤖' },
+          ].map((stat, i) => (
+            <LinearGradient key={i} colors={[stat.color + '22', stat.color + '08']} style={s.statCard}>
+              <Text style={s.statIcon}>{stat.icon}</Text>
+              <Text style={[s.statVal, { color: stat.color }]}>{stat.val}</Text>
+              <Text style={s.statLabel}>{stat.label}</Text>
+            </LinearGradient>
           ))}
         </View>
 
-        {/* Modules */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🚀 ALL MODULES</Text>
-          <View style={styles.moduleGrid}>
-            {modules.map((m, i) => (
-              <TouchableOpacity key={i} style={[styles.moduleCard, { borderColor: m.color + '44', backgroundColor: m.color + '10' }]}>
-                <Text style={[styles.moduleLabel, { color: m.color }]}>{m.label}</Text>
-                <Text style={styles.moduleDesc}>{m.desc}</Text>
+        {/* IDO COUNTDOWN */}
+        <LinearGradient colors={[Q.bg1, Q.bg2]} style={s.card}>
+          <Text style={s.cardTitle}>🚀 IDO Countdown — July 15, 2026</Text>
+          <View style={s.countdownRow}>
+            {[['d','D'], ['h','H'], ['m','M'], ['s','S']].map(([k, l]) => (
+              <View key={k} style={s.countdownBox}>
+                <Text style={s.countdownNum}>{String((countdown as any)[k]).padStart(2,'0')}</Text>
+                <Text style={s.countdownLabel}>{l}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={s.progressBar}>
+            <View style={[s.progressFill, { width: '56.8%' }]} />
+          </View>
+          <Text style={s.progressText}>2,840 / 5,000 Whitelist Spots</Text>
+        </LinearGradient>
+
+        {/* AI SIGNALS */}
+        <LinearGradient colors={[Q.bg1, Q.bg2]} style={s.card}>
+          <View style={s.cardHeader}>
+            <Animated.View style={[s.liveIndicator, { opacity: pulseOpacity }]} />
+            <Text style={s.cardTitle}>🤖 Live AI Signals — Meta Genius TR2</Text>
+          </View>
+          {signals.map((sig, i) => (
+            <View key={i} style={s.signalRow}>
+              <Text style={[s.signalAsset, { color: Q.bright }]}>{sig.asset}</Text>
+              <View style={[s.signalBadge, { backgroundColor: sig.color + '22', borderColor: sig.color + '55' }]}>
+                <Text style={[s.signalText, { color: sig.color }]}>{sig.sig}</Text>
+              </View>
+              <View style={s.confBar}>
+                <View style={[s.confFill, { width: `${sig.conf}%` as any, backgroundColor: sig.color }]} />
+              </View>
+              <Text style={[s.confNum, { color: sig.color }]}>{sig.conf}%</Text>
+            </View>
+          ))}
+        </LinearGradient>
+
+        {/* AGENT GRID */}
+        <LinearGradient colors={[Q.bg1, Q.bg2]} style={s.card}>
+          <Text style={s.cardTitle}>⚡ Agent Network Status</Text>
+          <View style={s.agentGrid}>
+            {AGENTS.map((a, i) => (
+              <View key={i} style={[s.agentCard, { borderColor: a.color + '44' }]}>
+                <View style={[s.agentDot, { backgroundColor: a.load > 30 ? Q.lepton : Q.dim }]} />
+                <Text style={[s.agentName, { color: a.color }]}>{a.name}</Text>
+                <View style={s.agentBarBg}>
+                  <View style={[s.agentBarFill, { width: `${a.load}%` as any, backgroundColor: a.color }]} />
+                </View>
+                <Text style={[s.agentLoad, { color: Q.dim }]}>{a.load}%</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
+
+        {/* QUICK ACTIONS */}
+        <LinearGradient colors={[Q.bg1, Q.bg2]} style={[s.card, { marginBottom: 32 }]}>
+          <Text style={s.cardTitle}>⚡ Quick Actions</Text>
+          <View style={s.actionsGrid}>
+            {[
+              { label:'Trade',  icon:'📊', color:Q.gluon   },
+              { label:'Swap',   icon:'⚡', color:Q.plasma  },
+              { label:'Stake',  icon:'🔒', color:Q.lepton  },
+              { label:'Mine',   icon:'⛏', color:Q.higgs   },
+              { label:'Vote',   icon:'🏛', color:Q.quark   },
+              { label:'Chat AI',icon:'🤖', color:Q.boson   },
+            ].map((a, i) => (
+              <TouchableOpacity key={i} style={[s.actionBtn, { borderColor: a.color + '44' }]}>
+                <Text style={s.actionIcon}>{a.icon}</Text>
+                <Text style={[s.actionLabel, { color: a.color }]}>{a.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </LinearGradient>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>© 2026 Grigori Saks — Patent Pending — Enterprise v4.0</Text>
-        </View>
-      </LinearGradient>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#000008' },
-  bg:           { flex: 1, minHeight: '100%' },
-  header:       { padding: 20, paddingTop: 52, borderBottomWidth: 1, borderBottomColor: 'rgba(124,58,237,0.2)' },
-  headerRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  headerTitle:  { fontSize: 22, fontWeight: '900', color: '#8b5cf6', letterSpacing: 2 },
-  headerSub:    { fontSize: 9, color: '#7c3aed', letterSpacing: 1.5, marginTop: 3 },
-  priceBox:     { alignItems: 'flex-end', padding: 10, borderRadius: 12, backgroundColor: 'rgba(251,191,36,0.1)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' },
-  priceLabel:   { fontSize: 9, color: '#475569' },
-  priceValue:   { fontSize: 20, fontWeight: '900', color: '#fbbf24', fontFamily: 'monospace' },
-  priceChange:  { fontSize: 11, fontWeight: '700', color: '#4ade80', marginTop: 2 },
-  blockRow:     { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
-  onlineDot:    { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ade80' },
-  blockText:    { fontSize: 10, color: '#94a3b8' },
-  ticker:       { marginHorizontal: -20, paddingHorizontal: 20 },
-  tickerItem:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 10, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
-  tickerDot:    { width: 5, height: 5, borderRadius: 3 },
-  tickerSym:    { fontSize: 10, fontWeight: '800' },
-  tickerPrice:  { fontSize: 11, fontWeight: '700', color: '#f0f4ff', fontFamily: 'monospace' },
-  tickerChange: { fontSize: 9, fontWeight: '700' },
-  statsGrid:    { flexDirection: 'row', flexWrap: 'wrap', padding: 14, gap: 8 },
-  statCard:     { width: (W - 44) / 2, padding: 14, borderRadius: 13, borderWidth: 1, alignItems: 'center' },
-  statIcon:     { fontSize: 22, marginBottom: 6 },
-  statLabel:    { fontSize: 9, color: '#475569', letterSpacing: 1, marginBottom: 4 },
-  statValue:    { fontSize: 16, fontWeight: '900', fontFamily: 'monospace' },
-  hqmllBox:     { margin: 14, padding: 16, borderRadius: 14, backgroundColor: 'rgba(6,182,212,0.08)', borderWidth: 1, borderColor: 'rgba(6,182,212,0.25)' },
-  hqmllHeader:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  hqmllTitle:   { fontSize: 12, fontWeight: '800', color: '#06b6d4' },
-  hqmllAcc:     { fontSize: 18, fontWeight: '900', color: '#4ade80' },
-  layerRow:     { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  layerName:    { width: 72, fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  layerBarBg:   { flex: 1, height: 5, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' },
-  layerBarFill: { height: 5, borderRadius: 3 },
-  layerVal:     { width: 36, fontSize: 10, fontWeight: '700', textAlign: 'right' },
-  section:      { padding: 14 },
-  sectionTitle: { fontSize: 13, fontWeight: '800', color: '#a78bfa', letterSpacing: 1, marginBottom: 12 },
-  moduleGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  moduleCard:   { width: (W - 44) / 2, padding: 14, borderRadius: 13, borderWidth: 1 },
-  moduleLabel:  { fontSize: 13, fontWeight: '800', marginBottom: 4 },
-  moduleDesc:   { fontSize: 10, color: '#94a3b8' },
-  footer:       { padding: 20, alignItems: 'center' },
-  footerText:   { fontSize: 9, color: '#475569', textAlign: 'center' },
+const s = StyleSheet.create({
+  safe:          { flex:1, backgroundColor:Q.void },
+  scroll:        { flex:1 },
+  header:        { padding:20, paddingTop:10, alignItems:'center' },
+  headerSub:     { fontSize:10, letterSpacing:3, color:Q.plasma, fontWeight:'700', marginBottom:4 },
+  headerTitle:   { fontSize:22, fontWeight:'900', color:Q.bright, marginBottom:16 },
+  priceBox:      { flexDirection:'row', backgroundColor:Q.plasma+'18', borderRadius:14,
+                   padding:14, borderWidth:1, borderColor:Q.plasma+'44', alignItems:'center' },
+  priceItem:     { flex:1, alignItems:'center' },
+  priceLabel:    { fontSize:10, color:Q.dim, marginBottom:2 },
+  priceValue:    { fontSize:22, fontWeight:'900' },
+  priceChange:   { fontSize:11, fontWeight:'700', marginTop:2 },
+  divider:       { width:1, height:40, backgroundColor:Q.plasma+'44', marginHorizontal:12 },
+  statsRow:      { flexDirection:'row', flexWrap:'wrap', padding:10, gap:8 },
+  statCard:      { width:(W-36)/2, borderRadius:12, padding:12, borderWidth:1, borderColor:Q.plasma+'22' },
+  statIcon:      { fontSize:20, marginBottom:4 },
+  statVal:       { fontSize:18, fontWeight:'900' },
+  statLabel:     { fontSize:10, color:Q.dim, marginTop:2 },
+  card:          { marginHorizontal:12, marginBottom:12, borderRadius:16, padding:16,
+                   borderWidth:1, borderColor:Q.plasma+'22' },
+  cardHeader:    { flexDirection:'row', alignItems:'center', gap:8, marginBottom:12 },
+  cardTitle:     { fontSize:13, fontWeight:'800', color:Q.quark, marginBottom:12 },
+  liveIndicator: { width:8, height:8, borderRadius:4, backgroundColor:Q.lepton },
+  countdownRow:  { flexDirection:'row', justifyContent:'center', gap:8, marginBottom:12 },
+  countdownBox:  { backgroundColor:Q.plasma+'18', borderRadius:10, padding:10,
+                   borderWidth:1, borderColor:Q.plasma+'44', alignItems:'center', minWidth:60 },
+  countdownNum:  { fontSize:26, fontWeight:'900', color:Q.photon, fontVariant:['tabular-nums'] },
+  countdownLabel:{ fontSize:9, color:Q.dim, marginTop:2 },
+  progressBar:   { height:8, backgroundColor:Q.plasma+'15', borderRadius:4, overflow:'hidden' },
+  progressFill:  { height:8, backgroundColor:Q.plasma, borderRadius:4 },
+  progressText:  { fontSize:10, color:Q.dim, marginTop:6, textAlign:'center' },
+  signalRow:     { flexDirection:'row', alignItems:'center', marginBottom:10, gap:8 },
+  signalAsset:   { width:50, fontWeight:'700', fontSize:12 },
+  signalBadge:   { borderRadius:20, paddingHorizontal:8, paddingVertical:2, borderWidth:1 },
+  signalText:    { fontSize:10, fontWeight:'800' },
+  confBar:       { flex:1, height:4, backgroundColor:Q.plasma+'20', borderRadius:2, overflow:'hidden' },
+  confFill:      { height:4, borderRadius:2 },
+  confNum:       { width:32, fontSize:11, fontWeight:'800', textAlign:'right' },
+  agentGrid:     { flexDirection:'row', flexWrap:'wrap', gap:8 },
+  agentCard:     { width:(W-60)/2, borderRadius:8, padding:8,
+                   borderWidth:1, backgroundColor:Q.bg2 },
+  agentDot:      { width:6, height:6, borderRadius:3, marginBottom:4 },
+  agentName:     { fontSize:10, fontWeight:'800', marginBottom:4 },
+  agentBarBg:    { height:3, backgroundColor:Q.plasma+'20', borderRadius:2, overflow:'hidden', marginBottom:2 },
+  agentBarFill:  { height:3, borderRadius:2 },
+  agentLoad:     { fontSize:9 },
+  actionsGrid:   { flexDirection:'row', flexWrap:'wrap', gap:8 },
+  actionBtn:     { width:(W-68)/3, borderRadius:12, padding:12, alignItems:'center',
+                   borderWidth:1, backgroundColor:Q.bg2 },
+  actionIcon:    { fontSize:22, marginBottom:4 },
+  actionLabel:   { fontSize:10, fontWeight:'700' },
 });
