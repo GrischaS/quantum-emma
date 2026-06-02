@@ -1,7 +1,7 @@
 {
   "name": "quantum-emma-android",
-  "version": "4.0.1",
-  "description": "Quantum Emma — Enterprise Trading App for Android",
+  "version": "5.0.0",
+  "description": "Quantum Emma \u2014 Enterprise Trading Platform v5.0 for Android",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
@@ -49,5 +49,5 @@
   "private": true,
   "author": "Grigori Saks <grischasaks@gmail.com>",
   "license": "PROPRIETARY",
-  "copyright": "© 2026 Grigori Saks — All Rights Reserved"
+  "copyright": "\u00a9 2026 Grigori Saks \u2014 All Rights Reserved"
 }
