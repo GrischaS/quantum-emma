@@ -1,7 +1,7 @@
 // ============================================================
-//  QUANTUM EMMA — Professional Trading Terminal v3.0
-//  4D/5D Holographic · BingX/Phemex Style · Live WebSocket
-//  © 2026 Grigori Saks — All Rights Reserved
+//  QUANTUM EMMA — Trading Terminal v5.0 MEGA UPGRADE
+//  B1: DEX Swap UI + B2: Live Preis-Chart + B4: AI Signals
+//  4D/5D Holographic · © 2026 Grigori Saks — All Rights Reserved
 // ============================================================
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
@@ -12,716 +12,665 @@ const Q = {
   muon:"#fb923c", tauon:"#f87171", bright:"#f0f4ff", mid:"#94a3b8", dim:"#475569",
 };
 
-function useTick(ms=60){const[t,setT]=useState(0);useEffect(()=>{const id=setInterval(()=>setT(n=>n+1),ms);return()=>clearInterval(id);},[]);return t;}
+function useTick(ms=80){const[t,setT]=useState(0);useEffect(()=>{const id=setInterval(()=>setT(n=>n+1),ms);return()=>clearInterval(id);},[ms]);return t;}
 
-// ─── LIVE CANDLE CHART ────────────────────────────────────────────────────────
-function CandleChart({ candles, height=220, overlay=true }) {
+// ─── PRICE ENGINE ─────────────────────────────────────────────────────────────
+function usePriceEngine() {
+  const [prices, setPrices] = useState({
+    QEMMA:{price:0.63,change:2.47,volume:1820000,mcap:9576000},
+    ETH:  {price:3241.50,change:1.12,volume:18400000000,mcap:389000000000},
+    BTC:  {price:67820,change:-0.34,volume:28900000000,mcap:1330000000000},
+    USDT: {price:1.00,change:0.01,volume:45000000000,mcap:110000000000},
+  });
+  const tick = useTick(2000);
+  useEffect(() => {
+    setPrices(prev => {
+      const next = {};
+      for (const [sym, d] of Object.entries(prev)) {
+        if (sym === "USDT") { next[sym] = d; continue; }
+        const drift = (Math.random() - 0.495) * 0.003;
+        const newPrice = d.price * (1 + drift);
+        const newChange = d.change + (Math.random()-0.5)*0.05;
+        next[sym] = {...d, price: newPrice, change: newChange};
+      }
+      return next;
+    });
+  }, [tick]);
+  return prices;
+}
+
+// ─── CANDLE GENERATOR ─────────────────────────────────────────────────────────
+function useCandles(basePrice=0.63, count=60) {
+  const [candles, setCandles] = useState(() => {
+    const arr = [];
+    let p = basePrice;
+    for (let i = 0; i < count; i++) {
+      const o = p;
+      const c = o * (1 + (Math.random()-0.49)*0.025);
+      const h = Math.max(o,c) * (1 + Math.random()*0.012);
+      const l = Math.min(o,c) * (1 - Math.random()*0.012);
+      arr.push({o,c,h,l,v:Math.random()*100+20,t:Date.now()-((count-i)*60000)});
+      p = c;
+    }
+    return arr;
+  });
+  const tick = useTick(3000);
+  useEffect(() => {
+    setCandles(prev => {
+      const last = prev[prev.length-1];
+      const c = last.c * (1 + (Math.random()-0.49)*0.02);
+      const h = Math.max(last.c,c)*(1+Math.random()*0.01);
+      const l = Math.min(last.c,c)*(1-Math.random()*0.01);
+      return [...prev.slice(1), {o:last.c,c,h,l,v:Math.random()*100+20,t:Date.now()}];
+    });
+  }, [tick]);
+  return candles;
+}
+
+// ─── CHART COMPONENT ──────────────────────────────────────────────────────────
+function CandleChart({ candles, height=260, timeframe="1m" }) {
   const min = Math.min(...candles.map(c=>c.l));
   const max = Math.max(...candles.map(c=>c.h));
-  const range = max - min || 1;
-  const toY = p => height - ((p - min) / range) * height;
-  const W = 100 / candles.length;
+  const range = max - min || 0.001;
+  const toY = p => height - ((p-min)/range)*height;
+  const W = 100/candles.length;
+  const last = candles[candles.length-1];
+  const first = candles[0];
+  const totalChange = ((last.c-first.o)/first.o*100).toFixed(2);
+  const isUp = totalChange >= 0;
 
-  // EMA lines (simulated)
-  const ema20 = candles.map((c,i) => ({
-    x: i*W+W/2,
-    y: toY(c.c * 0.998 + (Math.sin(i*0.3)*0.004)*c.c)
-  }));
-  const ema50 = candles.map((c,i) => ({
-    x: i*W+W/2,
-    y: toY(c.c * 0.991 + (Math.sin(i*0.2)*0.005)*c.c)
-  }));
+  // EMA calculations
+  const ema = (arr, period) => {
+    const k = 2/(period+1), result = [];
+    arr.forEach((v,i) => result.push(i===0 ? v : v*k + result[i-1]*(1-k)));
+    return result;
+  };
+  const closes = candles.map(c=>c.c);
+  const ema20 = ema(closes,20);
+  const ema50 = ema(closes,50);
+
+  const pointStr = (arr) => arr.map((v,i)=>`${i*W+W/2},${toY(v)}`).join(" ");
 
   return (
-    <div style={{height,position:"relative",width:"100%",userSelect:"none"}}>
-      {/* Grid */}
+    <div style={{position:"relative",width:"100%",height,userSelect:"none",fontFamily:"monospace"}}>
+      {/* Grid lines */}
       {[0,0.25,0.5,0.75,1].map(f=>(
-        <React.Fragment key={f}>
-          <div style={{position:"absolute",left:0,right:32,top:height*f,
-            height:1,background:"rgba(139,92,246,0.06)"}}/>
-          <div style={{position:"absolute",right:0,top:height*f-8,
-            fontSize:8,color:Q.dim,fontFamily:"monospace",textAlign:"right",paddingRight:2}}>
-            ${(max - range*f).toFixed(max>1000?0:2)}
-          </div>
-        </React.Fragment>
+        <div key={f} style={{position:"absolute",left:0,right:36,top:height*f,
+          height:1,background:"rgba(139,92,246,0.08)",display:"flex",alignItems:"center",justifyContent:"flex-end"}}>
+          <span style={{position:"absolute",right:0,top:-7,fontSize:9,color:Q.dim,width:34,textAlign:"right"}}>
+            ${(max-range*f).toFixed(max>100?0:4)}
+          </span>
+        </div>
       ))}
 
-      {/* SVG overlay (EMAs) */}
-      {overlay && (
-        <svg style={{position:"absolute",inset:0,width:"calc(100% - 32px)",height:"100%",overflow:"visible"}} preserveAspectRatio="none">
-          <polyline points={ema20.map(p=>`${p.x},${p.y}`).join(" ")}
-            fill="none" stroke={Q.higgs} strokeWidth="1" strokeOpacity="0.6"/>
-          <polyline points={ema50.map(p=>`${p.x},${p.y}`).join(" ")}
-            fill="none" stroke={Q.gluon} strokeWidth="1" strokeOpacity="0.5"/>
-        </svg>
-      )}
+      {/* SVG for EMAs */}
+      <svg style={{position:"absolute",inset:0,width:"calc(100% - 36px)",height:"100%",overflow:"visible"}}>
+        <polyline points={pointStr(ema20)} fill="none" stroke={Q.photon} strokeWidth="1" strokeOpacity="0.6"/>
+        <polyline points={pointStr(ema50)} fill="none" stroke={Q.higgs} strokeWidth="1" strokeOpacity="0.6"/>
+      </svg>
 
       {/* Candles */}
-      <div style={{display:"flex",height:"100%",paddingRight:32}}>
+      <div style={{position:"absolute",inset:0,right:36,display:"flex",alignItems:"flex-end"}}>
         {candles.map((c,i)=>{
-          const bull = c.c >= c.o;
-          const col  = bull ? Q.lepton : Q.tauon;
-          const bTop = toY(Math.max(c.o,c.c));
-          const bH   = Math.max(Math.abs(toY(c.o)-toY(c.c)),1.5);
+          const isBull = c.c >= c.o;
+          const color = isBull ? Q.lepton : Q.tauon;
+          const bodyTop = toY(Math.max(c.o,c.c));
+          const bodyH = Math.max(1, Math.abs(toY(c.o)-toY(c.c)));
+          const wickTop = toY(c.h);
+          const wickH = toY(c.l)-wickTop;
           return (
-            <div key={i} style={{flex:1,position:"relative",height:"100%"}}>
-              {/* Wick */}
-              <div style={{position:"absolute",left:"50%",width:1,
-                top:toY(c.h),height:toY(c.l)-toY(c.h),
-                background:col,opacity:0.7,transform:"translateX(-50%)"}}/>
-              {/* Body */}
-              <div style={{position:"absolute",left:"10%",right:"10%",
-                top:bTop,height:bH,
-                background:bull?`${col}cc`:col,
-                borderRadius:1,
-                boxShadow:i===candles.length-1?`0 0 6px ${col}88`:""}}/>
+            <div key={i} style={{position:"absolute",left:`${i*W}%`,width:`${W*0.75}%`,top:0,bottom:0}}>
+              <div style={{position:"absolute",left:"40%",top:wickTop,height:wickH,width:1,background:color,opacity:.7}}/>
+              <div style={{position:"absolute",left:0,right:0,top:bodyTop,height:bodyH,
+                background:isBull?`${color}cc`:color,border:`1px solid ${color}`,borderRadius:1,
+                boxShadow:`0 0 3px ${color}44`}}/>
             </div>
           );
         })}
       </div>
-    </div>
-  );
-}
 
-// ─── VOLUME BARS ─────────────────────────────────────────────────────────────
-function VolumeBars({ candles, height=40 }) {
-  const maxV = Math.max(...candles.map(c=>c.v||1));
-  return (
-    <div style={{display:"flex",alignItems:"flex-end",height,paddingRight:32,gap:0}}>
-      {candles.map((c,i)=>(
-        <div key={i} style={{
-          flex:1,height:`${((c.v||1)/maxV)*100}%`,
-          background:c.c>=c.o?`${Q.lepton}44`:`${Q.tauon}33`,
-          borderRadius:"2px 2px 0 0",
-        }}/>
-      ))}
-    </div>
-  );
-}
-
-// ─── RSI PANEL ───────────────────────────────────────────────────────────────
-function RSIPanel({ candles, height=40 }) {
-  const rsis = candles.map((c,i)=>52+Math.sin(i*0.28)*24);
-  const min=20,max=80,range=max-min;
-  const pts = rsis.map((v,i)=>`${i*100/(rsis.length-1)},${height-((v-min)/range)*height}`).join(" ");
-  return (
-    <div style={{height,position:"relative",paddingRight:32}}>
-      {/* Overbought/oversold lines */}
-      {[30,70].map(lv=>(
-        <div key={lv} style={{position:"absolute",left:0,right:32,
-          top:height-((lv-min)/range)*height,
-          height:1,background:lv===70?`${Q.tauon}44`:`${Q.lepton}44`}}/>
-      ))}
-      <svg width="100%" height={height} style={{overflow:"visible"}} preserveAspectRatio="none">
-        <polyline points={pts} fill="none" stroke={Q.quark} strokeWidth="1.5"
-          style={{filter:`drop-shadow(0 0 3px ${Q.quark})`}}/>
-      </svg>
-      <div style={{position:"absolute",right:0,top:0,fontSize:8,color:Q.dim}}>RSI</div>
-    </div>
-  );
-}
-
-// ─── ORDER BOOK ──────────────────────────────────────────────────────────────
-function OrderBook({ mid, tick }) {
-  const asks = Array.from({length:12},(_,i)=>({
-    p: mid+(i+1)*11+Math.sin(tick*0.1+i)*3,
-    a: +(0.04+Math.random()*1.1).toFixed(4),
-  })).map(o=>({...o,t:+(o.p*o.a).toFixed(0)}));
-
-  const bids = Array.from({length:12},(_,i)=>({
-    p: mid-(i+1)*11-Math.sin(tick*0.1+i)*3,
-    a: +(0.05+Math.random()*0.9).toFixed(4),
-  })).map(o=>({...o,t:+(o.p*o.a).toFixed(0)}));
-
-  const maxT = Math.max(...asks.map(o=>o.t),...bids.map(o=>o.t));
-
-  const Row = ({o,side}) => (
-    <div style={{display:"flex",justifyContent:"space-between",
-      padding:"3px 8px",fontSize:10,position:"relative",fontFamily:"monospace",
-      transition:"background 0.2s"}}>
-      <div style={{position:"absolute",top:0,bottom:0,
-        right:0,width:`${(o.t/maxT)*80}%`,
-        background:side==="ask"?`${Q.tauon}09`:`${Q.lepton}07`}}/>
-      <span style={{color:side==="ask"?Q.tauon:Q.lepton,fontWeight:700,zIndex:1}}>
-        {o.p.toFixed(1)}
-      </span>
-      <span style={{color:Q.mid,zIndex:1}}>{o.a.toFixed(4)}</span>
-      <span style={{color:Q.dim,zIndex:1}}>${o.t.toLocaleString()}</span>
-    </div>
-  );
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",fontSize:10}}>
-      <div style={{display:"flex",justifyContent:"space-between",
-        padding:"5px 8px",fontSize:8,color:Q.dim,letterSpacing:1,
-        borderBottom:`1px solid ${Q.plasma}18`}}>
-        <span>PRICE</span><span>QTY</span><span>TOTAL</span>
-      </div>
-      {asks.slice().reverse().map((o,i)=><Row key={`a${i}`} o={o} side="ask"/>)}
-      {/* Spread */}
-      <div style={{textAlign:"center",padding:"6px 8px",
-        background:`${Q.gluon}10`,
-        borderTop:`1px solid ${Q.gluon}20`,borderBottom:`1px solid ${Q.gluon}20`}}>
-        <span style={{fontSize:14,fontWeight:900,color:Q.photon,fontFamily:"monospace",
-          textShadow:`0 0 10px ${Q.photon}`}}>{mid.toFixed(2)}</span>
-        <span style={{fontSize:9,color:Q.dim,marginLeft:8}}>
-          Spread: ${(asks[0]?.p-bids[0]?.p).toFixed(1)}
+      {/* Current price line */}
+      <div style={{position:"absolute",left:0,right:36,top:toY(last.c),
+        height:1,background:`${isUp?Q.lepton:Q.tauon}88`,borderTop:`1px dashed ${isUp?Q.lepton:Q.tauon}66`}}>
+        <span style={{position:"absolute",right:-36,top:-9,fontSize:9,color:isUp?Q.lepton:Q.tauon,
+          background:Q.bg2,padding:"1px 3px",borderRadius:3,whiteSpace:"nowrap"}}>
+          ${last.c.toFixed(4)}
         </span>
       </div>
-      {bids.map((o,i)=><Row key={`b${i}`} o={o} side="bid"/>)}
+
+      {/* EMA Legend */}
+      <div style={{position:"absolute",top:6,left:6,display:"flex",gap:12,fontSize:9,color:Q.dim}}>
+        <span style={{color:Q.photon}}>EMA20</span>
+        <span style={{color:Q.higgs}}>EMA50</span>
+        <span style={{color:isUp?Q.lepton:Q.tauon,marginLeft:8}}>{isUp?"▲":"▼"} {totalChange}%</span>
+      </div>
     </div>
   );
 }
 
-// ─── TRADE FEED ───────────────────────────────────────────────────────────────
-function TradeFeed({ mid, tick }) {
-  const [trades, setTrades] = useState(()=>
-    Array.from({length:18},(_,i)=>({
-      id:i, side:Math.random()>.5?"buy":"sell",
-      price:mid+(Math.random()-.5)*30,
-      amount:+(0.001+Math.random()*.18).toFixed(4),
-      time:new Date(Date.now()-i*7000),
-    }))
-  );
-  useEffect(()=>{
-    if(tick%10===0){
-      setTrades(prev=>[{
-        id:Date.now(),side:Math.random()>.5?"buy":"sell",
-        price:mid+(Math.random()-.5)*28,
-        amount:+(0.001+Math.random()*.15).toFixed(4),
-        time:new Date(),
-      },...prev.slice(0,22)]);
-    }
-  },[tick]);
+// ─── ORDER BOOK ───────────────────────────────────────────────────────────────
+function OrderBook({ price }) {
+  const tick = useTick(1500);
+  const asks = Array.from({length:8},(_,i)=>({
+    price: price*(1+0.001*(i+1)*(1+Math.sin(tick*0.1+i)*0.3)),
+    size: (Math.random()*500+50).toFixed(2),
+    total: 0,
+  })).reverse();
+  const bids = Array.from({length:8},(_,i)=>({
+    price: price*(1-0.001*(i+1)*(1+Math.sin(tick*0.1+i)*0.3)),
+    size: (Math.random()*500+50).toFixed(2),
+    total: 0,
+  }));
+  const maxSize = Math.max(...[...asks,...bids].map(r=>parseFloat(r.size)));
 
   return (
-    <div style={{display:"flex",flexDirection:"column"}}>
-      <div style={{display:"flex",justifyContent:"space-between",
-        padding:"5px 8px",fontSize:8,color:Q.dim,letterSpacing:1,
-        borderBottom:`1px solid ${Q.plasma}18`}}>
-        <span>PRICE</span><span>QTY</span><span>TIME</span>
+    <div style={{fontSize:10,fontFamily:"monospace"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",color:Q.dim,padding:"0 4px 4px",borderBottom:`1px solid ${Q.plasma}22`}}>
+        <span>Price (USDT)</span><span style={{textAlign:"right"}}>Amount</span><span style={{textAlign:"right"}}>Total</span>
       </div>
-      {trades.map(t=>(
-        <div key={t.id} style={{display:"flex",justifyContent:"space-between",
-          padding:"3px 8px",fontSize:10,fontFamily:"monospace"}}>
-          <span style={{color:t.side==="buy"?Q.lepton:Q.tauon,fontWeight:700}}>
-            {t.price.toFixed(2)}
-          </span>
-          <span style={{color:Q.mid}}>{t.amount}</span>
-          <span style={{color:Q.dim,fontSize:9}}>
-            {t.time.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
-          </span>
+      {asks.map((a,i)=>(
+        <div key={i} style={{position:"relative",display:"grid",gridTemplateColumns:"1fr 1fr 1fr",
+          padding:"2px 4px",color:Q.tauon}}>
+          <div style={{position:"absolute",right:0,top:0,bottom:0,
+            width:`${(parseFloat(a.size)/maxSize)*100}%`,background:`${Q.tauon}12`}}/>
+          <span>{a.price.toFixed(4)}</span>
+          <span style={{textAlign:"right"}}>{a.size}</span>
+          <span style={{textAlign:"right"}}>{(a.price*parseFloat(a.size)).toFixed(0)}</span>
+        </div>
+      ))}
+      <div style={{textAlign:"center",padding:"6px 0",fontSize:14,fontWeight:800,
+        color:Q.lepton,borderTop:`1px solid ${Q.plasma}22`,borderBottom:`1px solid ${Q.plasma}22`}}>
+        ${price.toFixed(4)}
+      </div>
+      {bids.map((b,i)=>(
+        <div key={i} style={{position:"relative",display:"grid",gridTemplateColumns:"1fr 1fr 1fr",
+          padding:"2px 4px",color:Q.lepton}}>
+          <div style={{position:"absolute",right:0,top:0,bottom:0,
+            width:`${(parseFloat(b.size)/maxSize)*100}%`,background:`${Q.lepton}12`}}/>
+          <span>{b.price.toFixed(4)}</span>
+          <span style={{textAlign:"right"}}>{b.size}</span>
+          <span style={{textAlign:"right"}}>{(b.price*parseFloat(b.size)).toFixed(0)}</span>
         </div>
       ))}
     </div>
   );
 }
 
-// ─── INDICATORS BAR ──────────────────────────────────────────────────────────
-function IndicatorsBar({ price, tick }) {
-  const rsi  = 52+Math.sin(tick*0.04)*18;
-  const macd = 0.12+Math.sin(tick*0.03)*0.08;
-  const bb_u = (price*1.022).toFixed(0);
-  const bb_l = (price*0.978).toFixed(0);
-  return (
-    <div style={{display:"flex",gap:14,padding:"6px 14px",fontSize:10,
-      background:"rgba(0,0,0,0.35)",borderBottom:`1px solid ${Q.plasma}14`,
-      flexWrap:"wrap",overflowX:"auto",scrollbarWidth:"none"}}>
-      {[
-        {l:"RSI(14)",  v:rsi.toFixed(1),      c:rsi>70?Q.tauon:rsi<30?Q.lepton:Q.mid},
-        {l:"MACD",     v:macd.toFixed(3),      c:macd>0?Q.lepton:Q.tauon},
-        {l:"BB Upper", v:`$${bb_u}`,           c:Q.mid},
-        {l:"BB Lower", v:`$${bb_l}`,           c:Q.mid},
-        {l:"EMA 20",   v:`$${(price*.998).toFixed(0)}`, c:Q.higgs},
-        {l:"EMA 50",   v:`$${(price*.991).toFixed(0)}`, c:Q.gluon},
-        {l:"Volume",   v:"$2.41B",             c:Q.mid},
-        {l:"AI Signal",v:"BUY ▲",              c:Q.lepton},
-        {l:"Conf.",    v:"73.2%",              c:Q.neutrino},
-      ].map((s,i)=>(
-        <div key={i} style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
-          <span style={{color:Q.dim}}>{s.l}:</span>
-          <span style={{color:s.c,fontWeight:700}}>{s.v}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
+// ─── DEX SWAP UI (B1) ────────────────────────────────────────────────────────
+function DexSwap({ prices }) {
+  const [fromToken, setFromToken] = useState("ETH");
+  const [toToken, setToToken] = useState("QEMMA");
+  const [fromAmt, setFromAmt] = useState("");
+  const [slippage, setSlippage] = useState("0.5");
+  const [swapping, setSwapping] = useState(false);
+  const [swapSuccess, setSwapSuccess] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-// ─── POSITION TABLE ───────────────────────────────────────────────────────────
-function PositionTable({ price }) {
-  const positions = [
-    {sym:"BTC/USDT", side:"LONG",  size:0.18, entry:70200, lev:5,  c:Q.lepton},
-    {sym:"ETH/USDT", side:"LONG",  size:2.5,  entry:3780,  lev:3,  c:Q.lepton},
-    {sym:"QEMMA/ETH",side:"LONG",  size:5000, entry:0.000163,lev:1,c:Q.neutrino},
-  ];
+  const tokens = ["QEMMA","ETH","BTC","USDT"];
+  const fromPrice = prices[fromToken]?.price || 1;
+  const toPrice   = prices[toToken]?.price   || 1;
+  const toAmt     = fromAmt ? (parseFloat(fromAmt)*fromPrice/toPrice).toFixed(6) : "";
+  const priceImpact = parseFloat(fromAmt||0) > 500 ? "1.24" : parseFloat(fromAmt||0) > 100 ? "0.48" : "0.12";
+  const minReceived = toAmt ? (parseFloat(toAmt)*(1-parseFloat(slippage)/100)).toFixed(6) : "0";
+
+  const handleSwap = () => {
+    if (!fromAmt) return;
+    setSwapping(true);
+    setTimeout(() => { setSwapping(false); setSwapSuccess(true); setFromAmt(""); }, 2200);
+    setTimeout(() => setSwapSuccess(false), 5000);
+  };
+
+  const flip = () => { setFromToken(toToken); setToToken(fromToken); setFromAmt(""); };
+
   return (
-    <div>
-      <div style={{display:"grid",
-        gridTemplateColumns:"1.4fr 60px 70px 80px 80px 60px 80px",
-        padding:"5px 12px",fontSize:8,color:Q.dim,letterSpacing:1,
-        borderBottom:`1px solid ${Q.plasma}18`}}>
-        <span>SYMBOL</span><span>SIDE</span><span>SIZE</span>
-        <span>ENTRY</span><span>MARK</span><span>LEV</span><span>PNL</span>
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+        <span style={{color:Q.quark,fontWeight:700,fontSize:13}}>⚛️ DEX Swap</span>
+        <button onClick={()=>setShowSettings(!showSettings)} style={{background:"none",border:"none",color:Q.dim,cursor:"pointer",fontSize:16}}>⚙️</button>
       </div>
-      {positions.map((p,i)=>{
-        const mark  = p.sym==="BTC/USDT"?price:p.sym==="ETH/USDT"?3840:0.000168;
-        const pnl   = (mark-p.entry)*p.size*p.lev;
-        const pnlPct= ((mark-p.entry)/p.entry)*100*p.lev;
-        return (
-          <div key={i} style={{display:"grid",
-            gridTemplateColumns:"1.4fr 60px 70px 80px 80px 60px 80px",
-            padding:"7px 12px",fontSize:10,fontFamily:"monospace",
-            borderBottom:`1px solid ${Q.plasma}10`,
-            background:i%2===0?"rgba(139,92,246,0.02)":"transparent"}}>
-            <span style={{color:p.c,fontWeight:700}}>{p.sym}</span>
-            <span style={{color:Q.lepton}}>{p.side}</span>
-            <span style={{color:Q.mid}}>{p.size}</span>
-            <span style={{color:Q.dim,fontSize:9}}>
-              {p.entry<1?p.entry.toFixed(6):p.entry.toFixed(1)}
-            </span>
-            <span style={{color:Q.bright,fontSize:9}}>
-              {mark<1?mark.toFixed(6):mark.toFixed(1)}
-            </span>
-            <span style={{color:Q.higgs}}>{p.lev}x</span>
-            <span style={{color:pnl>=0?Q.lepton:Q.tauon,fontWeight:700}}>
-              {pnl>=0?"+":""}{pnl.toFixed(1)}
-            </span>
+
+      {/* Slippage settings */}
+      {showSettings && (
+        <div style={{background:`${Q.plasma}15`,borderRadius:10,padding:"10px 12px",border:`1px solid ${Q.plasma}33`}}>
+          <div style={{color:Q.mid,fontSize:11,marginBottom:6}}>Slippage Tolerance</div>
+          <div style={{display:"flex",gap:6}}>
+            {["0.1","0.5","1.0"].map(s=>(
+              <button key={s} onClick={()=>setSlippage(s)} style={{
+                flex:1,padding:"4px",borderRadius:8,border:`1px solid ${slippage===s?Q.photon:Q.plasma}44`,
+                background:slippage===s?`${Q.photon}20`:"transparent",color:slippage===s?Q.photon:Q.mid,
+                cursor:"pointer",fontSize:11
+              }}>{s}%</button>
+            ))}
+            <input value={slippage} onChange={e=>setSlippage(e.target.value)}
+              style={{width:50,padding:"4px",borderRadius:8,border:`1px solid ${Q.plasma}44`,
+                background:"transparent",color:Q.bright,fontSize:11,textAlign:"center"}}/>
           </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── ORDER FORM ───────────────────────────────────────────────────────────────
-function OrderForm({ price, pair, tick }) {
-  const [side,  setSide]  = useState("buy");
-  const [otype, setOType] = useState("limit");
-  const [lev,   setLev]   = useState(1);
-  const [amt,   setAmt]   = useState("");
-  const [oprice,setOPrice]= useState(price.toFixed(2));
-  const [sl,    setSL]    = useState("");
-  const [tp,    setTP]    = useState("");
-
-  const total = parseFloat(oprice||0)*parseFloat(amt||0)*lev;
-
-  useEffect(()=>{ if(otype==="market") setOPrice(price.toFixed(2)); },[price,otype]);
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:10,padding:"12px"}}>
-      {/* Buy / Sell */}
-      <div style={{display:"flex",gap:6}}>
-        {["buy","sell"].map(s=>(
-          <button key={s} onClick={()=>setSide(s)} style={{
-            flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",
-            background:side===s
-              ?(s==="buy"?`${Q.lepton}28`:`${Q.tauon}28`)
-              :"rgba(255,255,255,0.04)",
-            color:side===s?(s==="buy"?Q.lepton:Q.tauon):Q.dim,
-            fontWeight:900,fontSize:13,letterSpacing:1,
-            borderBottom:side===s?`2px solid ${s==="buy"?Q.lepton:Q.tauon}`:"2px solid transparent",
-          }}>{s==="buy"?"▲ BUY":"▼ SELL"}</button>
-        ))}
-      </div>
-
-      {/* Order type */}
-      <div style={{display:"flex",gap:4}}>
-        {["market","limit","stop","oco"].map(t=>(
-          <button key={t} onClick={()=>setOType(t)} style={{
-            flex:1,padding:"5px",borderRadius:7,border:"none",cursor:"pointer",fontSize:9,
-            background:otype===t?`${Q.plasma}22`:"rgba(255,255,255,0.04)",
-            color:otype===t?Q.neutrino:Q.dim,fontWeight:700,letterSpacing:0.5,
-          }}>{t.toUpperCase()}</button>
-        ))}
-      </div>
-
-      {/* Leverage */}
-      <div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:5}}>
-          <span style={{color:Q.dim}}>Leverage</span>
-          <span style={{color:Q.higgs,fontWeight:800}}>{lev}x</span>
-        </div>
-        <div style={{display:"flex",gap:4}}>
-          {[1,3,5,10,20,50].map(l=>(
-            <button key={l} onClick={()=>setLev(l)} style={{
-              flex:1,padding:"5px",borderRadius:6,border:"none",cursor:"pointer",
-              background:lev===l?`${Q.higgs}22`:"rgba(255,255,255,0.04)",
-              color:lev===l?Q.higgs:Q.dim,fontSize:9,fontWeight:700,
-            }}>{l}x</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Price */}
-      {otype!=="market"&&(
-        <div>
-          <div style={{fontSize:9,color:Q.dim,marginBottom:4,letterSpacing:1}}>PRICE (USDT)</div>
-          <input value={oprice} onChange={e=>setOPrice(e.target.value)}
-            style={{width:"100%",padding:"9px 12px",borderRadius:9,
-              background:"rgba(0,0,0,0.5)",
-              border:`1px solid ${side==="buy"?Q.lepton:Q.tauon}44`,
-              color:Q.bright,fontSize:14,fontWeight:700,boxSizing:"border-box"}}/>
         </div>
       )}
 
-      {/* Amount */}
-      <div>
-        <div style={{fontSize:9,color:Q.dim,marginBottom:4,letterSpacing:1}}>AMOUNT</div>
-        <input value={amt} onChange={e=>setAmt(e.target.value)} placeholder="0.000"
-          style={{width:"100%",padding:"9px 12px",borderRadius:9,
-            background:"rgba(0,0,0,0.5)",
-            border:`1px solid ${Q.plasma}33`,
-            color:Q.bright,fontSize:14,fontWeight:700,boxSizing:"border-box"}}/>
-        <div style={{display:"flex",gap:4,marginTop:6}}>
-          {[25,50,75,100].map(p=>(
-            <button key={p} onClick={()=>setAmt((p/100*0.5).toFixed(4))} style={{
-              flex:1,padding:"4px",borderRadius:6,border:`1px solid ${Q.plasma}22`,
-              background:"rgba(255,255,255,0.04)",color:Q.dim,fontSize:9,cursor:"pointer",
-            }}>{p}%</button>
-          ))}
+      {/* From */}
+      <div style={{background:`${Q.plasma}12`,borderRadius:12,padding:"12px 14px",border:`1px solid ${Q.plasma}33`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <span style={{color:Q.dim,fontSize:11}}>From</span>
+          <span style={{color:Q.dim,fontSize:11}}>Balance: 1,240.00 {fromToken}</span>
         </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <input value={fromAmt} onChange={e=>setFromAmt(e.target.value)} placeholder="0.0"
+            style={{flex:1,background:"none",border:"none",color:Q.bright,fontSize:22,fontWeight:700,outline:"none",fontFamily:"monospace"}}/>
+          <select value={fromToken} onChange={e=>setFromToken(e.target.value)} style={{
+            background:Q.bg2,border:`1px solid ${Q.plasma}44`,color:Q.bright,borderRadius:8,
+            padding:"6px 10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            {tokens.filter(t=>t!==toToken).map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+        {fromAmt && <div style={{color:Q.dim,fontSize:10,marginTop:4}}>≈ ${(parseFloat(fromAmt)*fromPrice).toFixed(2)}</div>}
       </div>
 
-      {/* SL / TP */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        <div>
-          <div style={{fontSize:9,color:Q.tauon,marginBottom:4}}>Stop Loss</div>
-          <input value={sl} onChange={e=>setSL(e.target.value)} placeholder="Optional"
-            style={{width:"100%",padding:"7px 10px",borderRadius:8,
-              background:"rgba(0,0,0,0.4)",border:`1px solid ${Q.tauon}22`,
-              color:Q.bright,fontSize:11,boxSizing:"border-box"}}/>
-        </div>
-        <div>
-          <div style={{fontSize:9,color:Q.lepton,marginBottom:4}}>Take Profit</div>
-          <input value={tp} onChange={e=>setTP(e.target.value)} placeholder="Optional"
-            style={{width:"100%",padding:"7px 10px",borderRadius:8,
-              background:"rgba(0,0,0,0.4)",border:`1px solid ${Q.lepton}22`,
-              color:Q.bright,fontSize:11,boxSizing:"border-box"}}/>
-        </div>
+      {/* Flip button */}
+      <div style={{display:"flex",justifyContent:"center"}}>
+        <button onClick={flip} style={{background:`${Q.plasma}30`,border:`1px solid ${Q.plasma}66`,
+          color:Q.quark,borderRadius:"50%",width:32,height:32,cursor:"pointer",fontSize:16,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          boxShadow:`0 0 12px ${Q.plasma}44`}}>⇅</button>
       </div>
 
-      {/* Summary */}
-      <div style={{padding:"9px 12px",borderRadius:9,
-        background:"rgba(0,0,0,0.35)",border:`1px solid ${Q.plasma}18`}}>
-        {[
-          {l:"Order Value",    v:`$${total.toFixed(2)}`},
-          {l:"Margin Req.",    v:`$${(total/lev).toFixed(2)}`},
-          {l:"Est. Fee (0.1%)",v:`$${(total*0.001).toFixed(2)}`},
-          {l:"Liquidation",   v:lev>1?`$${(parseFloat(oprice||0)*(1-0.9/lev)).toFixed(0)}`:"—"},
-        ].map((r,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",
-            fontSize:10,padding:"3px 0",
-            borderBottom:i<3?`1px solid rgba(255,255,255,0.04)`:"none"}}>
-            <span style={{color:Q.dim}}>{r.l}</span>
-            <span style={{color:Q.mid,fontWeight:600}}>{r.v}</span>
+      {/* To */}
+      <div style={{background:`${Q.gluon}10`,borderRadius:12,padding:"12px 14px",border:`1px solid ${Q.gluon}33`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <span style={{color:Q.dim,fontSize:11}}>To (estimated)</span>
+          <span style={{color:Q.dim,fontSize:11}}>Balance: 50,000 {toToken}</span>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{flex:1,color:toAmt?Q.bright:Q.dim,fontSize:22,fontWeight:700,fontFamily:"monospace"}}>
+            {toAmt || "0.0"}
           </div>
-        ))}
-      </div>
-
-      {/* Submit */}
-      <button style={{padding:"13px",borderRadius:12,border:"none",cursor:"pointer",
-        background:side==="buy"
-          ?`linear-gradient(135deg,${Q.lepton}88,#22c55e66)`
-          :`linear-gradient(135deg,${Q.tauon}88,#dc262666)`,
-        color:Q.bright,fontSize:14,fontWeight:900,letterSpacing:2,
-        boxShadow:`0 4px 20px ${side==="buy"?Q.lepton:Q.tauon}33`}}>
-        {side==="buy"?`▲ BUY ${pair.split("/")[0]}`:`▼ SELL ${pair.split("/")[0]}`}
-      </button>
-
-      {/* AI Signal */}
-      <div style={{padding:"9px 11px",borderRadius:10,
-        background:`${Q.plasma}0e`,border:`1px solid ${Q.plasma}28`}}>
-        <div style={{fontSize:9,fontWeight:800,color:Q.plasma,marginBottom:5,letterSpacing:1}}>
-          ⚛️ EMMA AI SIGNAL
+          <select value={toToken} onChange={e=>setToToken(e.target.value)} style={{
+            background:Q.bg2,border:`1px solid ${Q.gluon}44`,color:Q.bright,borderRadius:8,
+            padding:"6px 10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+            {tokens.filter(t=>t!==fromToken).map(t=><option key={t}>{t}</option>)}
+          </select>
         </div>
-        {[
-          {s:"BTC",  sig:"BUY",  conf:73.2, c:Q.lepton},
-          {s:"ETH",  sig:"HOLD", conf:61.8, c:Q.higgs},
-          {s:"QEMMA",sig:"BUY",  conf:88.4, c:Q.neutrino},
-        ].map((a,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",
-            fontSize:10,marginBottom:4}}>
-            <span style={{color:Q.dim,fontWeight:700}}>{a.s}</span>
-            <span style={{color:a.c,fontWeight:800}}>{a.sig}</span>
-            <span style={{color:Q.dim}}>{a.conf}%</span>
+        {toAmt && <div style={{color:Q.dim,fontSize:10,marginTop:4}}>≈ ${(parseFloat(toAmt)*toPrice).toFixed(2)}</div>}
+      </div>
+
+      {/* Trade info */}
+      {fromAmt && (
+        <div style={{background:`${Q.bg2}`,borderRadius:10,padding:"8px 12px",fontSize:10,color:Q.dim,display:"flex",flexDirection:"column",gap:4}}>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span>Rate</span><span style={{color:Q.mid}}>1 {fromToken} = {(fromPrice/toPrice).toFixed(4)} {toToken}</span>
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── PAIRS SIDEBAR ────────────────────────────────────────────────────────────
-function PairsList({ selected, onSelect, tick }) {
-  const pairs = [
-    {sym:"BTC/USDT",  p:71450+Math.sin(tick*.025)*290,  c:+2.34, color:Q.higgs},
-    {sym:"ETH/USDT",  p:3840 +Math.sin(tick*.032)*95,   c:+1.87, color:Q.gluon},
-    {sym:"QEMMA/USDT",p:0.6300+Math.sin(tick*.055)*.025,c:+8.42, color:Q.neutrino},
-    {sym:"QEMMA/ETH", p:0.000164+Math.sin(tick*.04)*.000004,c:+6.21,color:Q.neutrino},
-    {sym:"BNB/USDT",  p:612  +Math.sin(tick*.028)*18,   c:+0.91, color:Q.muon},
-    {sym:"SOL/USDT",  p:184  +Math.sin(tick*.041)*9,    c:+3.12, color:"#9945ff"},
-    {sym:"MATIC/USDT",p:1.24 +Math.sin(tick*.038)*.04,  c:+5.21, color:Q.plasma},
-    {sym:"ARB/USDT",  p:1.84 +Math.sin(tick*.035)*.06,  c:+2.80, color:"#28a0f0"},
-    {sym:"OP/USDT",   p:2.84 +Math.sin(tick*.044)*.09,  c:-0.94, color:Q.tauon},
-  ];
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <div style={{padding:"8px 10px",borderBottom:`1px solid ${Q.plasma}18`,flexShrink:0}}>
-        <input placeholder="Search pair..." style={{
-          width:"100%",padding:"6px 10px",borderRadius:8,
-          background:"rgba(0,0,0,0.4)",border:`1px solid ${Q.plasma}22`,
-          color:Q.mid,fontSize:11,boxSizing:"border-box"}}/>
-      </div>
-      <div style={{flex:1,overflowY:"auto",scrollbarWidth:"none"}}>
-        {pairs.map((p,i)=>(
-          <div key={i} onClick={()=>onSelect(p.sym)} style={{
-            padding:"9px 12px",cursor:"pointer",
-            background:selected===p.sym?`${p.color}14`:"transparent",
-            borderLeft:selected===p.sym?`2px solid ${p.color}`:"2px solid transparent",
-            borderBottom:`1px solid ${Q.plasma}10`,
-            transition:"all 0.15s",
-          }}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-              <span style={{fontWeight:700,fontSize:11,
-                color:selected===p.sym?p.color:Q.mid}}>{p.sym}</span>
-              <span style={{fontSize:11,fontWeight:700,fontFamily:"monospace",color:Q.bright}}>
-                {p.p<1?p.p.toFixed(6):p.p.toFixed(2)}
-              </span>
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between"}}>
-              <span style={{fontSize:9,color:Q.dim}}>Vol: $2.41B</span>
-              <span style={{fontSize:9,color:p.c>=0?Q.lepton:Q.tauon,fontWeight:700}}>
-                {p.c>=0?"▲":"▼"}{Math.abs(p.c)}%
-              </span>
-            </div>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span>Price Impact</span>
+            <span style={{color:parseFloat(priceImpact)>1?Q.tauon:Q.lepton}}>{priceImpact}%</span>
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span>Min. Received</span><span style={{color:Q.mid}}>{minReceived} {toToken}</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span>Slippage</span><span style={{color:Q.higgs}}>{slippage}%</span>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span>Network Fee</span><span style={{color:Q.mid}}>~$2.40 ETH</span>
+          </div>
+        </div>
+      )}
 
-// ─── MAIN ────────────────────────────────────────────────────────────────────
-export default function TradingPage() {
-  const tick  = useTick(60);
-  const [pair,    setPair]    = useState("BTC/USDT");
-  const [tf,      setTF]      = useState("4h");
-  const [tab,     setTab]     = useState("positions");
-  const [bookTab, setBookTab] = useState("book");
-
-  const btcPrice = 71450 + Math.sin(tick*0.025)*290;
-
-  // Generate candles
-  const candles = useRef(Array.from({length:80},(_,i)=>{
-    const base = 71000+Math.sin(i*.38)*1900;
-    const open = base+(Math.random()-.5)*400;
-    const close= base+(Math.random()-.5)*400+(Math.random()-.5)*200;
-    return {
-      o:open, c:close,
-      h:Math.max(open,close)+(Math.random()*600),
-      l:Math.min(open,close)-(Math.random()*600),
-      v:600+Math.random()*1400,
-    };
-  })).current;
-
-  const tfs = ["1m","5m","15m","1h","4h","1d","1w"];
-  const indicators = ["MA","BB","MACD","RSI","VOL","ICHIMOKU"];
-
-  return (
-    <div style={{
-      height:"100vh", background:Q.void,
-      fontFamily:"'Inter',system-ui,sans-serif", color:Q.bright,
-      display:"flex", flexDirection:"column", overflow:"hidden",
-    }}>
-      {/* ── TOP BAR ── */}
-      <div style={{
-        display:"flex", alignItems:"center", gap:12, padding:"0 14px",
-        height:50, flexShrink:0,
-        background:`${Q.bg1}f8`, borderBottom:`1px solid ${Q.plasma}22`,
-        boxShadow:`0 4px 20px ${Q.void}`,
+      {/* Swap Button */}
+      <button onClick={handleSwap} disabled={!fromAmt||swapping} style={{
+        padding:"14px",borderRadius:14,border:"none",cursor:fromAmt?"pointer":"not-allowed",
+        background: swapSuccess ? `linear-gradient(135deg,${Q.lepton},${Q.gluon})`
+          : swapping ? `${Q.plasma}66`
+          : fromAmt ? `linear-gradient(135deg,${Q.plasma},${Q.gluon})`
+          : `${Q.plasma}33`,
+        color:Q.bright,fontWeight:800,fontSize:15,letterSpacing:1,
+        boxShadow: fromAmt ? `0 0 20px ${Q.plasma}66` : "none",
+        transition:"all .3s",
       }}>
-        <div style={{fontWeight:900,fontSize:13,color:Q.neutrino,letterSpacing:1}}>
-          ⚛️ QE TERMINAL
-        </div>
-        <div style={{width:1,height:24,background:`${Q.plasma}33`}}/>
-        {/* Pair info */}
-        <div style={{display:"flex",alignItems:"center",gap:16}}>
-          <div>
-            <div style={{fontSize:18,fontWeight:900,color:Q.photon,fontFamily:"monospace",
-              textShadow:`0 0 12px ${Q.photon}88`}}>{btcPrice.toFixed(2)}</div>
-            <div style={{fontSize:9,color:Q.lepton}}>▲ +2.34%</div>
+        {swapSuccess ? "✅ Swap Successful!" : swapping ? "⏳ Swapping..." : fromAmt ? `⚡ Swap ${fromToken} → ${toToken}` : "Enter Amount"}
+      </button>
+    </div>
+  );
+}
+
+// ─── AI SIGNAL ENGINE (B4) ────────────────────────────────────────────────────
+function AISignalEngine({ tick }) {
+  const signals = [
+    { agent:"ALPHA-7",   signal:"STRONG BUY",  confidence:94, color:Q.lepton,  asset:"QEMMA", reason:"HQMLL momentum divergence detected" },
+    { agent:"BETA-3",    signal:"BUY",          confidence:78, color:Q.gluon,   asset:"ETH",   reason:"Support at EMA50 confirmed" },
+    { agent:"GAMMA-12",  signal:"HOLD",         confidence:62, color:Q.higgs,   asset:"BTC",   reason:"RSI neutral zone, await breakout" },
+    { agent:"DELTA-1",   signal:"SELL",         confidence:71, color:Q.tauon,   asset:"USDT",  reason:"Inflation hedge signal weakening" },
+    { agent:"EPSILON-9", signal:"STRONG BUY",   confidence:89, color:Q.lepton,  asset:"QEMMA", reason:"MetaCodex Phase 2 activation" },
+  ];
+
+  const pulse = 0.5 + Math.sin(tick*0.07)*0.3;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+        <div style={{width:8,height:8,borderRadius:"50%",background:Q.lepton,
+          boxShadow:`0 0 ${8+pulse*6}px ${Q.lepton}`,animation:"none"}}/>
+        <span style={{color:Q.quark,fontWeight:700,fontSize:12}}>META GENIUS TR2 — Live Signals</span>
+      </div>
+      {signals.map((s,i)=>(
+        <div key={i} style={{background:`${s.color}0e`,borderRadius:10,padding:"8px 12px",
+          border:`1px solid ${s.color}${Math.round((0.2+pulse*0.1)*255).toString(16).padStart(2,"0")}`,
+          display:"flex",gap:10,alignItems:"center"}}>
+          <div style={{minWidth:70}}>
+            <div style={{fontSize:9,color:Q.dim}}>{s.agent}</div>
+            <div style={{fontSize:11,fontWeight:800,color:s.color}}>{s.signal}</div>
           </div>
-          {[
-            {l:"24h High",v:"$73,120"},
-            {l:"24h Low", v:"$69,841"},
-            {l:"24h Vol", v:"$2.41B"},
-            {l:"Open Int",v:"$8.2B"},
-            {l:"Funding",  v:"0.012%"},
-          ].map((s,i)=>(
-            <div key={i} style={{borderLeft:`1px solid ${Q.plasma}22`,paddingLeft:12}}>
-              <div style={{fontSize:8,color:Q.dim,letterSpacing:1}}>{s.l}</div>
-              <div style={{fontSize:11,fontWeight:700,color:Q.mid,marginTop:2}}>{s.v}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:10,color:Q.mid,marginBottom:3}}>{s.asset} · {s.reason}</div>
+            <div style={{height:4,background:`${s.color}22`,borderRadius:2}}>
+              <div style={{height:4,width:`${s.confidence}%`,background:s.color,borderRadius:2,
+                boxShadow:`0 0 6px ${s.color}88`,transition:"width 1s"}}/>
             </div>
+          </div>
+          <div style={{fontSize:13,fontWeight:800,color:s.color,minWidth:35,textAlign:"right"}}>
+            {s.confidence}%
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── RECENT TRADES ────────────────────────────────────────────────────────────
+function RecentTrades({ price }) {
+  const tick = useTick(800);
+  const [trades, setTrades] = useState(() =>
+    Array.from({length:12},(_,i)=>({
+      id:i, price: price*(0.998+Math.random()*0.004),
+      size:(Math.random()*200+5).toFixed(2),
+      side:Math.random()>0.5?"buy":"sell",
+      time: new Date(Date.now()-i*8000).toLocaleTimeString()
+    }))
+  );
+  useEffect(()=>{
+    if (tick%3!==0) return;
+    setTrades(prev=>[{
+      id:Date.now(), price: price*(0.999+Math.random()*0.002),
+      size:(Math.random()*150+5).toFixed(2),
+      side:Math.random()>0.5?"buy":"sell",
+      time:new Date().toLocaleTimeString()
+    },...prev.slice(0,11)]);
+  },[tick]);
+  return (
+    <div style={{fontSize:10,fontFamily:"monospace"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",color:Q.dim,
+        padding:"0 4px 4px",borderBottom:`1px solid ${Q.plasma}22`}}>
+        <span>Price</span><span style={{textAlign:"right"}}>Size</span><span style={{textAlign:"right"}}>Time</span>
+      </div>
+      {trades.map(tr=>(
+        <div key={tr.id} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",
+          padding:"2px 4px",color:tr.side==="buy"?Q.lepton:Q.tauon}}>
+          <span>{tr.price.toFixed(4)}</span>
+          <span style={{textAlign:"right"}}>{tr.size}</span>
+          <span style={{textAlign:"right",color:Q.dim}}>{tr.time}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── MAIN TRADING TERMINAL ────────────────────────────────────────────────────
+export default function TradingTerminal() {
+  const tick = useTick(80);
+  const prices = usePriceEngine();
+  const candles = useCandles(prices.QEMMA.price, 60);
+  const [pair, setPair] = useState("QEMMA/USDT");
+  const [orderType, setOrderType] = useState("limit");
+  const [side, setSide] = useState("buy");
+  const [limitPrice, setLimitPrice] = useState("");
+  const [amount, setAmount] = useState("");
+  const [tab, setTab] = useState("chart"); // chart | swap | signals
+  const [pairTab, setPairTab] = useState("QEMMA");
+
+  const qPrice = prices.QEMMA;
+  const pulse = 0.5+Math.sin(tick*0.05)*0.3;
+
+  const pairs = [
+    {sym:"QEMMA", label:"QEMMA/USDT", change:qPrice.change},
+    {sym:"ETH",   label:"ETH/USDT",   change:prices.ETH.change},
+    {sym:"BTC",   label:"BTC/USDT",   change:prices.BTC.change},
+  ];
+
+  const activePair = pairs.find(p=>p.sym===pairTab) || pairs[0];
+  const activePrice = prices[pairTab] || prices.QEMMA;
+
+  return (
+    <div style={{minHeight:"100vh",background:Q.void,color:Q.bright,fontFamily:"'Inter',sans-serif",paddingBottom:40}}>
+      {/* ── HEADER BAR ── */}
+      <div style={{background:Q.deep,borderBottom:`1px solid ${Q.plasma}33`,padding:"10px 20px",
+        display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+        {/* Logo */}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <svg width={28} height={28} viewBox="0 0 100 100" style={{filter:`drop-shadow(0 0 6px ${Q.neutrino})`}}>
+            <circle cx="50" cy="50" r="48" fill="url(#hg)" stroke={Q.plasma} strokeWidth="2"/>
+            <defs><radialGradient id="hg" cx="40%" cy="35%"><stop offset="0%" stopColor="#c4b5fd"/><stop offset="100%" stopColor="#3b0764"/></radialGradient></defs>
+            <text x="50" y="67" textAnchor="middle" fontSize="44" fontWeight="900" fill="white" fontFamily="monospace">Q</text>
+          </svg>
+          <span style={{fontWeight:900,fontSize:15,color:Q.quark,letterSpacing:1}}>QEMMA</span>
+        </div>
+
+        {/* Pair selector */}
+        <div style={{display:"flex",gap:4}}>
+          {pairs.map(p=>(
+            <button key={p.sym} onClick={()=>setPairTab(p.sym)} style={{
+              padding:"4px 12px",borderRadius:8,border:`1px solid ${pairTab===p.sym?Q.plasma:Q.plasma+"33"}`,
+              background:pairTab===p.sym?`${Q.plasma}30`:"transparent",color:pairTab===p.sym?Q.quark:Q.mid,
+              cursor:"pointer",fontSize:11,fontWeight:700}}>
+              {p.label}
+              <span style={{marginLeft:4,color:p.change>=0?Q.lepton:Q.tauon,fontSize:10}}>
+                {p.change>=0?"+":""}{p.change.toFixed(2)}%
+              </span>
+            </button>
           ))}
         </div>
 
-        <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:6,
-            padding:"5px 12px",borderRadius:20,
-            background:`${Q.lepton}14`,border:`1px solid ${Q.lepton}33`}}>
-            <div style={{width:6,height:6,borderRadius:"50%",background:Q.lepton,
-              boxShadow:`0 0 6px ${Q.lepton}`}}/>
-            <span style={{fontSize:10,color:Q.lepton,fontWeight:700}}>WS LIVE</span>
+        {/* Live price */}
+        <div style={{marginLeft:"auto",textAlign:"right"}}>
+          <div style={{fontSize:22,fontWeight:900,color:activePrice.change>=0?Q.lepton:Q.tauon,
+            textShadow:`0 0 ${8+pulse*8}px ${activePrice.change>=0?Q.lepton:Q.tauon}`}}>
+            ${activePrice.price.toFixed(pairTab==="QEMMA"?4:2)}
           </div>
-          <button style={{padding:"6px 14px",borderRadius:8,
-            border:`1px solid ${Q.plasma}33`,background:`${Q.plasma}18`,
-            color:Q.neutrino,fontSize:10,fontWeight:700,cursor:"pointer"}}>
-            Full Screen
-          </button>
+          <div style={{fontSize:11,color:Q.dim}}>
+            Vol: ${(activePrice.volume/1e6).toFixed(1)}M · MCap: ${(activePrice.mcap/1e9).toFixed(2)}B
+          </div>
         </div>
       </div>
-
-      {/* ── INDICATORS BAR ── */}
-      <IndicatorsBar price={btcPrice} tick={tick}/>
 
       {/* ── MAIN LAYOUT ── */}
-      <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:0,maxWidth:1400,margin:"0 auto",padding:"16px 16px 0"}}>
 
-        {/* Pairs list */}
-        <div style={{
-          width:200, flexShrink:0,
-          borderRight:`1px solid ${Q.plasma}18`,
-          background:`${Q.bg1}88`,
-        }}>
-          <PairsList selected={pair} onSelect={setPair} tick={tick}/>
-        </div>
+        {/* LEFT COLUMN */}
+        <div style={{display:"flex",flexDirection:"column",gap:12,paddingRight:12}}>
 
-        {/* Chart area */}
-        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          {/* Timeframe + indicators */}
-          <div style={{display:"flex",gap:4,padding:"6px 10px",
-            borderBottom:`1px solid ${Q.plasma}14`,flexShrink:0,
-            background:"rgba(0,0,0,0.2)"}}>
-            {tfs.map(t=>(
-              <button key={t} onClick={()=>setTF(t)} style={{
-                padding:"3px 10px",borderRadius:6,border:"none",cursor:"pointer",fontSize:10,
-                background:tf===t?`${Q.plasma}28`:"transparent",
-                color:tf===t?Q.neutrino:Q.dim,fontWeight:tf===t?800:400,
-              }}>{t}</button>
+          {/* Tab switcher */}
+          <div style={{display:"flex",gap:4,background:`${Q.bg1}`,borderRadius:10,padding:4,border:`1px solid ${Q.plasma}22`}}>
+            {[["chart","📊 Chart"],["swap","⚡ Swap"],["signals","🤖 AI Signals"]].map(([t,l])=>(
+              <button key={t} onClick={()=>setTab(t)} style={{
+                flex:1,padding:"6px",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
+                background:tab===t?`linear-gradient(135deg,${Q.plasma},${Q.gluon})`:"transparent",
+                color:tab===t?Q.bright:Q.dim,boxShadow:tab===t?`0 0 12px ${Q.plasma}44`:"none"}}>
+                {l}
+              </button>
             ))}
-            <div style={{width:1,height:20,background:`${Q.plasma}22`,margin:"0 4px"}}/>
-            {indicators.map(ind=>(
-              <span key={ind} style={{padding:"3px 8px",borderRadius:6,cursor:"pointer",
-                background:"rgba(139,92,246,0.08)",color:Q.quark,fontSize:9,fontWeight:700}}>
-                {ind}
-              </span>
-            ))}
-            <div style={{marginLeft:"auto",fontSize:9,color:Q.dim,display:"flex",gap:8,alignItems:"center"}}>
-              <span style={{color:Q.higgs}}>━ EMA20</span>
-              <span style={{color:Q.gluon}}>━ EMA50</span>
-            </div>
           </div>
 
           {/* Chart */}
-          <div style={{flex:1,padding:"8px 6px 0",overflow:"hidden"}}>
-            <CandleChart candles={candles} height={200}/>
-            <div style={{height:1,background:`${Q.plasma}14`,margin:"3px 0"}}/>
-            <VolumeBars candles={candles} height={35}/>
-            <div style={{height:1,background:`${Q.plasma}14`,margin:"3px 0"}}/>
-            <RSIPanel candles={candles} height={32}/>
-          </div>
-
-          {/* Emma AI bar */}
-          <div style={{
-            padding:"7px 14px",flexShrink:0,
-            background:`${Q.plasma}0d`,
-            borderTop:`1px solid ${Q.plasma}22`,
-            display:"flex",gap:12,alignItems:"center",
-          }}>
-            <span style={{fontSize:16,filter:`drop-shadow(0 0 6px ${Q.plasma})`}}>👁</span>
-            <div style={{flex:1}}>
-              <div style={{fontSize:9,fontWeight:800,color:Q.plasma,letterSpacing:1}}>
-                EMMA AI · ETA-P PREDICTION MODULE
+          {tab==="chart" && (
+            <div style={{background:Q.bg1,borderRadius:14,padding:"14px",border:`1px solid ${Q.plasma}22`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <span style={{color:Q.quark,fontWeight:700}}>⚛️ QEMMA/USDT — Live Candlestick</span>
+                <div style={{display:"flex",gap:4}}>
+                  {["1m","5m","15m","1h","4h","1D"].map(tf=>(
+                    <button key={tf} style={{padding:"2px 8px",borderRadius:6,border:`1px solid ${Q.plasma}33`,
+                      background:"transparent",color:tf==="1m"?Q.photon:Q.dim,cursor:"pointer",fontSize:10}}>
+                      {tf}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div style={{fontSize:11,color:Q.mid,marginTop:2}}>
-                Bullish Divergenz erkannt. Support: ${(btcPrice-380).toFixed(0)}.
-                Target: ${(btcPrice+920).toFixed(0)}. Stop: ${(btcPrice-620).toFixed(0)}.
-                Timeframe: 14 Tage.
-              </div>
+              <CandleChart candles={candles} height={280}/>
             </div>
-            <div style={{textAlign:"center",padding:"6px 14px",borderRadius:9,
-              background:`${Q.lepton}14`,border:`1px solid ${Q.lepton}33`}}>
-              <div style={{fontSize:16,fontWeight:900,color:Q.lepton}}>73.2%</div>
-              <div style={{fontSize:8,color:Q.dim,letterSpacing:1}}>CONFIDENCE</div>
+          )}
+
+          {/* DEX Swap */}
+          {tab==="swap" && (
+            <div style={{background:Q.bg1,borderRadius:14,padding:"20px",border:`1px solid ${Q.plasma}22`}}>
+              <DexSwap prices={prices}/>
+            </div>
+          )}
+
+          {/* AI Signals */}
+          {tab==="signals" && (
+            <div style={{background:Q.bg1,borderRadius:14,padding:"16px",border:`1px solid ${Q.plasma}22`}}>
+              <AISignalEngine tick={tick}/>
+            </div>
+          )}
+
+          {/* Order Book + Recent Trades */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div style={{background:Q.bg1,borderRadius:12,padding:"12px",border:`1px solid ${Q.plasma}22`}}>
+              <div style={{color:Q.quark,fontWeight:700,fontSize:12,marginBottom:8}}>📖 Order Book</div>
+              <OrderBook price={activePrice.price}/>
+            </div>
+            <div style={{background:Q.bg1,borderRadius:12,padding:"12px",border:`1px solid ${Q.plasma}22`}}>
+              <div style={{color:Q.quark,fontWeight:700,fontSize:12,marginBottom:8}}>🔄 Recent Trades</div>
+              <RecentTrades price={activePrice.price}/>
             </div>
           </div>
+        </div>
 
-          {/* Bottom tabs */}
-          <div style={{flexShrink:0,borderTop:`1px solid ${Q.plasma}18`,maxHeight:160}}>
-            <div style={{display:"flex",borderBottom:`1px solid ${Q.plasma}14`}}>
-              {["positions","orders","history","emma"].map(t=>(
-                <button key={t} onClick={()=>setTab(t)} style={{
-                  padding:"6px 14px",border:"none",cursor:"pointer",fontSize:10,
-                  background:"transparent",
-                  color:tab===t?Q.neutrino:Q.dim,
-                  borderBottom:tab===t?`2px solid ${Q.neutrino}`:"2px solid transparent",
-                  fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",
-                }}>{t}</button>
+        {/* RIGHT COLUMN — Order Form */}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{background:Q.bg1,borderRadius:14,padding:"16px",border:`1px solid ${Q.plasma}22`}}>
+
+            {/* Buy/Sell toggle */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:14}}>
+              <button onClick={()=>setSide("buy")} style={{
+                padding:"10px",borderRadius:10,border:"none",cursor:"pointer",fontWeight:800,fontSize:13,
+                background:side==="buy"?`linear-gradient(135deg,${Q.lepton}cc,${Q.gluon}cc)`:`${Q.lepton}15`,
+                color:side==="buy"?Q.void:Q.lepton,boxShadow:side==="buy"?`0 0 16px ${Q.lepton}44`:"none"}}>
+                ▲ BUY
+              </button>
+              <button onClick={()=>setSide("sell")} style={{
+                padding:"10px",borderRadius:10,border:"none",cursor:"pointer",fontWeight:800,fontSize:13,
+                background:side==="sell"?`linear-gradient(135deg,${Q.tauon}cc,${Q.muon}cc)`:`${Q.tauon}15`,
+                color:side==="sell"?Q.void:Q.tauon,boxShadow:side==="sell"?`0 0 16px ${Q.tauon}44`:"none"}}>
+                ▼ SELL
+              </button>
+            </div>
+
+            {/* Order type */}
+            <div style={{display:"flex",gap:4,marginBottom:12}}>
+              {["limit","market","stop"].map(t=>(
+                <button key={t} onClick={()=>setOrderType(t)} style={{
+                  flex:1,padding:"5px",borderRadius:8,border:`1px solid ${Q.plasma}${orderType===t?"88":"22"}`,
+                  background:orderType===t?`${Q.plasma}30`:"transparent",
+                  color:orderType===t?Q.quark:Q.dim,cursor:"pointer",fontSize:10,fontWeight:700,textTransform:"capitalize"}}>
+                  {t}
+                </button>
               ))}
             </div>
-            <div style={{maxHeight:120,overflowY:"auto"}}>
-              {tab==="positions"&&<PositionTable price={btcPrice}/>}
-              {tab==="orders"&&(
-                <div style={{padding:"14px",fontSize:11,color:Q.dim,textAlign:"center"}}>
-                  No open orders
+
+            {/* Available balance */}
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:Q.dim,marginBottom:10}}>
+              <span>Available</span>
+              <span style={{color:Q.mid}}>{side==="buy"?"$10,420.00 USDT":"50,000 QEMMA"}</span>
+            </div>
+
+            {/* Price input (limit) */}
+            {orderType==="limit" && (
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:11,color:Q.dim,marginBottom:4}}>Limit Price (USDT)</div>
+                <div style={{display:"flex",gap:4}}>
+                  <input value={limitPrice} onChange={e=>setLimitPrice(e.target.value)}
+                    placeholder={activePrice.price.toFixed(4)}
+                    style={{flex:1,background:`${Q.bg2}`,border:`1px solid ${Q.plasma}33`,borderRadius:8,
+                      padding:"8px 10px",color:Q.bright,fontSize:13,outline:"none",fontFamily:"monospace"}}/>
+                  <button onClick={()=>setLimitPrice(activePrice.price.toFixed(4))} style={{
+                    padding:"8px 8px",borderRadius:8,border:`1px solid ${Q.plasma}44`,
+                    background:`${Q.plasma}20`,color:Q.quark,cursor:"pointer",fontSize:10}}>Mkt</button>
                 </div>
-              )}
-              {tab==="history"&&<TradeFeed mid={btcPrice} tick={tick}/>}
-              {tab==="emma"&&(
-                <div style={{padding:"10px 14px",fontSize:11,color:Q.mid,lineHeight:1.7}}>
-                  <b style={{color:Q.neutrino}}>⚛️ Emma Oracle:</b> ETA-P Analyse bestätigt bullisches
-                  Sentiment. QEMMA/ETH Pool zeigt Akkumulation. Empfehlung: DCA-Strategie bei
-                  $0.61–$0.63. Target: $0.84 in 14 Tagen. Confidence: 88.4%.
-                </div>
-              )}
+              </div>
+            )}
+
+            {/* Amount */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:Q.dim,marginBottom:4}}>Amount (QEMMA)</div>
+              <input value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00"
+                style={{width:"100%",background:`${Q.bg2}`,border:`1px solid ${Q.plasma}33`,borderRadius:8,
+                  padding:"8px 10px",color:Q.bright,fontSize:13,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
+              {/* Quick % */}
+              <div style={{display:"flex",gap:4,marginTop:6}}>
+                {["25%","50%","75%","100%"].map(p=>(
+                  <button key={p} onClick={()=>setAmount((50000*parseInt(p)/100).toString())} style={{
+                    flex:1,padding:"3px",borderRadius:6,border:`1px solid ${Q.plasma}33`,
+                    background:"transparent",color:Q.dim,cursor:"pointer",fontSize:10}}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Total */}
+            {amount && (
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:Q.dim,
+                marginBottom:10,padding:"6px 8px",background:`${Q.plasma}0a`,borderRadius:6}}>
+                <span>Total</span>
+                <span style={{color:Q.mid}}>${(parseFloat(amount||0)*activePrice.price).toFixed(2)} USDT</span>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button style={{
+              width:"100%",padding:"13px",borderRadius:12,border:"none",cursor:"pointer",
+              fontWeight:800,fontSize:14,letterSpacing:1,
+              background:side==="buy"
+                ?`linear-gradient(135deg,${Q.lepton},${Q.gluon})`
+                :`linear-gradient(135deg,${Q.tauon},${Q.muon})`,
+              color:Q.void,
+              boxShadow:`0 0 20px ${side==="buy"?Q.lepton:Q.tauon}55`}}>
+              {side==="buy"?"▲ PLACE BUY ORDER":"▼ PLACE SELL ORDER"}
+            </button>
+          </div>
+
+          {/* Mini AI signal widget */}
+          <div style={{background:Q.bg1,borderRadius:14,padding:"14px",border:`1px solid ${Q.lepton}22`}}>
+            <div style={{color:Q.lepton,fontWeight:700,fontSize:11,marginBottom:8}}>🤖 AI Recommendation</div>
+            <div style={{textAlign:"center",padding:"12px 0"}}>
+              <div style={{fontSize:28,fontWeight:900,color:Q.lepton,
+                textShadow:`0 0 ${12+pulse*8}px ${Q.lepton}`}}>STRONG BUY</div>
+              <div style={{color:Q.dim,fontSize:11,marginTop:4}}>Confidence: 94% · ALPHA-7</div>
+              <div style={{height:6,background:`${Q.lepton}22`,borderRadius:3,marginTop:8}}>
+                <div style={{height:6,width:"94%",background:`linear-gradient(90deg,${Q.lepton},${Q.gluon})`,
+                  borderRadius:3,boxShadow:`0 0 10px ${Q.lepton}88`}}/>
+              </div>
+            </div>
+            <div style={{fontSize:10,color:Q.dim,marginTop:8,lineHeight:1.5}}>
+              HQMLL momentum divergence + Phase 2 MetaCodex activation detected. Target: $1.20 (+90%)
             </div>
           </div>
-        </div>
 
-        {/* Order book + trades */}
-        <div style={{
-          width:230, flexShrink:0,
-          borderLeft:`1px solid ${Q.plasma}18`,
-          background:`${Q.bg1}88`,
-          display:"flex",flexDirection:"column",overflow:"hidden",
-        }}>
-          <div style={{display:"flex",borderBottom:`1px solid ${Q.plasma}18`,flexShrink:0}}>
-            {["book","trades"].map(t=>(
-              <button key={t} onClick={()=>setBookTab(t)} style={{
-                flex:1,padding:"7px",border:"none",cursor:"pointer",fontSize:9,fontWeight:700,
-                background:"transparent",letterSpacing:1,
-                color:bookTab===t?Q.gluon:Q.dim,
-                borderBottom:bookTab===t?`2px solid ${Q.gluon}`:"2px solid transparent",
-              }}>{t==="book"?"ORDER BOOK":"TRADES"}</button>
+          {/* Market stats */}
+          <div style={{background:Q.bg1,borderRadius:14,padding:"14px",border:`1px solid ${Q.plasma}22`}}>
+            <div style={{color:Q.quark,fontWeight:700,fontSize:11,marginBottom:10}}>📊 Market Stats</div>
+            {[
+              ["24h High","$0.7140",Q.lepton],
+              ["24h Low","$0.5820",Q.tauon],
+              ["24h Vol","$1.82M",Q.mid],
+              ["Open","$0.6147",Q.mid],
+              ["Funding","0.0100%",Q.higgs],
+            ].map(([l,v,c])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",
+                padding:"4px 0",borderBottom:`1px solid ${Q.plasma}11`,fontSize:11}}>
+                <span style={{color:Q.dim}}>{l}</span><span style={{color:c}}>{v}</span>
+              </div>
             ))}
           </div>
-          <div style={{flex:1,overflowY:"auto",scrollbarWidth:"none"}}>
-            {bookTab==="book"
-              ? <OrderBook mid={btcPrice} tick={tick}/>
-              : <TradeFeed mid={btcPrice} tick={tick}/>
-            }
-          </div>
-        </div>
-
-        {/* Order form */}
-        <div style={{
-          width:240, flexShrink:0,
-          borderLeft:`1px solid ${Q.plasma}18`,
-          background:`${Q.bg1}88`,
-          overflowY:"auto",scrollbarWidth:"thin",
-          scrollbarColor:`${Q.plasma}44 transparent`,
-        }}>
-          <OrderForm price={btcPrice} pair={pair} tick={tick}/>
         </div>
       </div>
     </div>
