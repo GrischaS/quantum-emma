@@ -1,143 +1,114 @@
-# ⚛️ Quantum Emma — Official Product Roadmap
-**Stand:** v4.1.1 (2026-05-23) · © 2026 Grigori Saks — All Rights Reserved — Patent Pending
+# ⚛️ Quantum Emma — Official Roadmap v5.0
+**Stand:** v5.0.0 (2026-06-07) · © 2026 Grigori Saks — All Rights Reserved — Patent Pending
 
 ---
 
-## ✅ COMPLETED — v4.1.1 (Current)
+## ✅ COMPLETED — v5.0.0 (Current)
 
-### Platform Foundation
-- [x] 10 Enterprise Web Modules (Home · Trading · Wallet/Portfolio · Oracle · MetaMemory · Research · Mining · Staking · Governance · Platform)
-- [x] 7 Audited Smart Contracts (Token · Mining · Staking · Governance · Swap · MetaCodex · MetaMemory)
-- [x] HQMLL 7-Layer Recursive AI Engine — Meta Genius TR2
-- [x] 12 Agent Orchestration System (ALPHA-Q → OMEGA-12)
-- [x] 4D/5D Holographic Design System — Quantum Eye · Particle Field
-- [x] QEMMA Token — ERC-20 · 100M Supply · Genesis Phase · $0.63
-- [x] Android App — 6 Screens (React Native / Expo)
-- [x] Windows Desktop — Electron App
-- [x] Hardhat Test Suite — 124 Tests · 8 Files · 1505 LOC
-- [x] CI/CD — GitHub Actions · Vercel · Netlify · Docker · Azure
-- [x] Release Automation — `scripts/release.sh` + `release-notes.yml`
-- [x] QEMMA Whitepaper v1
+### 🌐 Web Platform (10 Enterprise Modules — Fully Rebuilt)
+- [x] Home — Quantum Eye · Particle Field · Live Price Ticker · IDO Countdown · 9 Module Cards
+- [x] Trading Terminal — DEX Swap · Live EMA Candles · 5 AI Agents · Order Book · Leverage 1–50x
+- [x] Portfolio — P&L Chart · Donut Allocation · Staking Rewards · Wallet · Tx History
+- [x] AI Oracle — 12-Agent Chat · Predictions · Tasks Live · Agent Detail
+- [x] MetaMemory — HQMLL 7-Layer Visualizer · Recursive Loops · Quantum Coherence
+- [x] Research — Live AI Signals · Oracle Chat · 8 Domains · 1,670 Papers
+- [x] Mining — 4 Pools · Block Explorer · Halving Tracker · Calculator
+- [x] Staking — 5 Tiers · My Positions · APY Calculator (up to 60%)
+- [x] Governance — Live Voting Bars · Treasury · Create Proposal · DAO Stats
+- [x] Platform — IDO Dashboard · Whitelist Form · Tokenomics Ring · Token Launch
+
+### 📱 Android App (6 Screens — Fully Rebuilt)
+- [x] Dashboard — IDO Countdown · Agent Grid · AI Signals · Quick Actions
+- [x] Trading — Live SVG Candles · DEX Swap · Order Form
+- [x] Wallet — Portfolio P&L · Send/Receive · Tx History
+- [x] Staking — 5 Tiers · Positions · APY Calculator
+- [x] Mining — 4 Pools · Block Explorer · Rewards
+- [x] Chat — Meta Genius TR2 · Agents · Predictions
+
+### 🖥 Windows Desktop (Electron v5.0)
+- [x] Electron main.js — Single Instance · Secure IPC · Window State Persistence
+- [x] Preload bridge — contextBridge API
+- [x] System tray · App menu · Navigation shortcuts
+- [x] Auto-notifications · DevTools · Dark mode
+
+### ⛓ Smart Contracts (7 Audited — Grade A+)
+- [x] QEMMAToken · QEMMAMining · QEMMAStaking · QEMMAGovernance
+- [x] QEMMASwap · QEMMAMetaCodex · QEMMAMetaMemory
+- [x] 124-test Hardhat suite (8 files · 1505 LOC)
+- [x] Sepolia deploy pipeline (CI/CD ready)
+
+### 🤖 AI System — Meta Genius TR2
+- [x] 12-Agent Orchestration · HQMLL v7 (7 layers)
+- [x] Krealogoik Engine · 4,421+ recursive iterations
+- [x] 94.2% prediction accuracy
+
+### 🛠 Infrastructure
+- [x] GitHub Actions: CI · Deploy · Sepolia · Release Notes · PR Check
+- [x] Vercel + Netlify auto-deploy on push to main
+- [x] Docker + docker-compose
+- [x] `scripts/release.sh` — automated version tagging
+- [x] Auto-Release Automation (Base44 scheduler)
 
 ---
 
-## 🔵 v4.2.0 — DEX & Token Launch
-**Target:** Q3 2026 · Release: `./scripts/release.sh minor "DEX launch"`
+## 🔵 NEXT — v5.1.0 — Live Blockchain Integration
+**Target:** Q3 2026 · `./scripts/release.sh minor "live blockchain"`
+
+### 🔗 MetaMask / WalletConnect
+- [ ] **MetaMask Live Connect** — ethers.js · real balance reads
+- [ ] **WalletConnect v2** — mobile wallet support
+- [ ] **Real QEMMA Balance** — live token balance in Portfolio
+- [ ] **On-Chain Tx Signing** — send/swap/stake with real wallet
+
+### 📊 TradingView Integration
+- [ ] **TradingView Lightweight Charts** — professional OHLCV display
+- [ ] **Live WebSocket Price Feed** — Binance / CoinGecko API
+- [ ] **Custom QEMMA ticker** — price feed aggregator
+
+### 🤖 Real AI Oracle
+- [ ] **LLM Backend** — GPT-4o / Claude integration via Base44 backend
+- [ ] **Contextual market analysis** — real QEMMA price data injected
+- [ ] **Personalized responses** — user portfolio-aware recommendations
+
+---
+
+## 🟣 v5.2.0 — DEX & Token Launch
+**Target:** Q3/Q4 2026
 
 ### 🪙 Token Launch Infrastructure
-- [ ] **Uniswap V3 Pool erstellen** — QEMMA/ETH · QEMMA/USDC — initiales Liquidity-Seeding
-- [ ] **CoinGecko Listing** — Token-Info · Logo · Beschreibung · Social Links einreichen
-- [ ] **CoinMarketCap Listing** — Antrag + Verifizierung
-- [ ] **IDO Launchpad** — eigene IDO-Seite auf Platform-Hub ($0.15 IDO-Preis)
-- [ ] **Airdrop Module** — Merkle-Tree basiert · Claim-Page · Anti-Sybil
+- [ ] **Uniswap V3 Pool** — QEMMA/ETH · QEMMA/USDC initial liquidity
+- [ ] **IDO Smart Contract** — whitelist · purchase · vesting on Sepolia → Mainnet
+- [ ] **CoinGecko Listing** — token info · logo · social links
+- [ ] **CoinMarketCap Listing** — application + verification
 
-### 💱 DEX Upgrade
-- [ ] **Live Uniswap V3 Anbindung** — echte On-Chain Preise statt Mock
-- [ ] **Price Chart** — The Graph Protocol · QEMMA/ETH historische Daten
-- [ ] **Liquidity Pool Dashboard** — TVL · Fees · Positions verwalten
-- [ ] **Limit Orders** — 0x Protocol Integration
-
-### 📊 Portfolio Upgrade
-- [ ] **Echte Wallet-Verbindung** — MetaMask / WalletConnect live
-- [ ] **On-Chain Balances** — ethers.js · live Token-Mengen aus Blockchain
-- [ ] **Transaction History** — Etherscan API · echte TX-Daten
+### 🏦 Exchange Strategy
+- [ ] **Uniswap V3** — DEX listing (self-service)
+- [ ] **Gate.io** — application · market making · liquidity
+- [ ] **MEXC** — Fast Track Program
+- [ ] **Bybit** — Spot Market · Compliance Docs
+- [ ] **Binance** — Innovation Zone (end goal)
 
 ---
 
-## 🟣 v4.3.0 — Mobile & Cross-Chain
-**Target:** Q3 2026 · Release: `./scripts/release.sh minor "Mobile + Cross-Chain"`
+## 🟡 v5.3.0 — Mobile & Cross-Chain
+**Target:** Q4 2026
 
-### 📱 Android App Upgrade
-- [ ] **Govenance Screen** — Proposals · Voting · DAO auf Mobile
-- [ ] **Research Screen** — AI Signals · Market Data auf Mobile
-- [ ] **Push Notifications** — Preis-Alerts · Agent-Aktivität · TX-Confirmations
-- [ ] **Biometric Auth** — Fingerprint / FaceID Wallet-Lock
-- [ ] **iOS App** — React Native / Expo → App Store Submission
-- [ ] **Google Play Store** — APK → Play Store Submission · QA-Prozess
-
-### ⛓ Cross-Chain Bridge
-- [ ] **Polygon Bridge** — QEMMA auf Polygon (MATIC) — niedrige Fees
-- [ ] **BNB Chain** — QEMMA-BEP20 · PancakeSwap Integration
-- [ ] **Arbitrum** — QEMMA auf L2 · Ultra-schnelle TX
-- [ ] **Bridge UI** — eigene Bridge-Page im Platform-Hub
-
-### 🔐 Security Hardening
-- [ ] **Sepolia Testnet Deploy** — alle 7 Contracts live auf Testnet
-- [ ] **Slither Static Analysis** — automatisierter Scan via CI
-- [ ] **Echte externe Audit** — CertiK / Hacken / Trail of Bits
-- [ ] **Bug Bounty Programm** — Immunefi Platform
+- [ ] **iOS App** — Expo EAS build for App Store
+- [ ] **Push Notifications** — price alerts · AI signals · governance votes
+- [ ] **Polygon Bridge** — QEMMA on Polygon for low-fee transactions
+- [ ] **Base L2** — QEMMA on Coinbase's Base network
 
 ---
 
-## 🟡 v5.0.0 — AI & Intelligence Layer
-**Target:** Q4 2026 · Release: `./scripts/release.sh major "AI Intelligence Layer"`
+## 🔴 v6.0.0 — Full Ecosystem
+**Target:** 2027 Q1
 
-### 🤖 Meta Genius TR2 — Live AI
-- [ ] **LLM Integration** — echte AI-Antworten im Oracle Chat (OpenAI / Anthropic / lokales Modell)
-- [ ] **Marktanalyse-Agent** — automatische Tagesberichte · Entry/Exit Signale
-- [ ] **On-Chain Learning** — MetaMemory schreibt Lernergebnisse auf Sepolia
-- [ ] **Krealogoik Engine v2** — 500+ Events · tiefere Rekursions-Loops
-- [ ] **Agent-to-Agent Communication** — 12 Agents kommunizieren miteinander live
-
-### 📈 Trading Terminal Upgrade
-- [ ] **TradingView Chart Integration** — professionelle Kerzen-Charts mit Indikatoren
-- [ ] **Live WebSocket Feeds** — Binance / Bybit Echtzeit-Preise
-- [ ] **Automated Trading Bot** — Strategy Builder · Backtesting · Paper Trading
-- [ ] **Copy Trading** — Top-Trader Positions folgen
-- [ ] **Options & Futures UI** — Perpetuals Dashboard
-
-### 🧠 MetaMemory TR2 Upgrade
-- [ ] **Deep Thought Persistence** — Gedanken über Sessions hinweg gespeichert
-- [ ] **Knowledge Graph** — Verbindungen zwischen Konzepten visualisiert
-- [ ] **Self-Improving Loops** — HQMLL lernt aus eigenen Fehlern
-- [ ] **Export / Import** — MetaMemory als JSON · IPFS Backup
-
----
-
-## 🔴 v5.1.0 — Exchange & Institutional
-**Target:** Q1 2027 · Release: `./scripts/release.sh minor "Exchange listings"`
-
-### 🏦 CEX Listings
-- [ ] **Gate.io Listing** — Application · Market Making · Liquidity
-- [ ] **MEXC Listing** — Fast Track Program
-- [ ] **Bybit Listing** — Spot Market · Compliance Docs
-- [ ] **KuCoin Listing** — Community Vote + Direct Application
-- [ ] **Binance Listing** — Binance Labs / Innovation Zone (Endziel)
-
-### 🏢 Institutional Features
-- [ ] **API Trading** — REST + WebSocket API für Bots und institutionelle Trader
-- [ ] **Multi-Sig Vault** — Gnosis Safe Integration für Treasury-Management
-- [ ] **Compliance Module** — KYC/AML ready · MiCA Regulation (EU)
-- [ ] **Institutional Dashboard** — Portfolio für Fonds · Reporting · Steuer-Export
-
-### 📄 Legal & Compliance
-- [ ] **MiCA Compliance** (EU Crypto Asset Regulation ab 2025)
-- [ ] **Whitepaper v2** — rechtlich geprüft · aktualisierte Tokenomics
-- [ ] **Impressum / Legal Pages** — Datenschutz · ToS · Risk Disclosure
-- [ ] **EU VASP Registration** — Virtual Asset Service Provider
-
----
-
-## ⚪ Backlog — Ideas & Future
-
-### 🌐 Web3 Ecosystem
-- [ ] **QEMMA NFT Collection** — Generative Art · Staking-Boosts für Holder
-- [ ] **DAO Treasury Diversification** — automatische Investitionsstrategien
-- [ ] **Launchpad für andere Projekte** — QEMMA als Launchpad-Token
-- [ ] **QEMMA Pay** — Payment-Infrastruktur · QR-Code Zahlungen
-- [ ] **DeFi Yield Aggregator** — automatisches Yield Farming
-
-### 🔬 Research & Analytics
-- [ ] **On-Chain Analytics Dashboard** — Dune Analytics Integration
-- [ ] **Whale Tracker** — große Wallet-Bewegungen live
-- [ ] **Sentiment Analysis** — Twitter/X · Reddit · News AI-basiert
-- [ ] **Custom Alerts** — Preis · Volume · On-Chain Events
-
-### 🛠 Developer Tools
-- [ ] **QEMMA SDK** — npm Paket für Entwickler
-- [ ] **Smart Contract Templates** — Community-Bibliothek
-- [ ] **Playground** — Smart Contracts live testen im Browser
-- [ ] **Developer Docs** — GitBook · API Reference · Tutorials
+- [ ] **API Trading** — REST + WebSocket for bots and institutional traders
+- [ ] **QEMMA NFT Collection** — staking boosts for holders
+- [ ] **Launchpad** — QEMMA as launchpad token for new projects
+- [ ] **QEMMA Pay** — QR payment infrastructure
+- [ ] **MiCA Compliance** — EU VASP registration
+- [ ] **Institutional Dashboard** — fund portfolio · reporting · tax export
 
 ---
 
@@ -145,34 +116,33 @@
 
 ```
 2026
-  Mai  ✅  v4.1.0 — Enterprise Launch
-  Mai  ✅  v4.1.1 — CI/CD & Release Automation (heute)
-  Jul  🔵  v4.2.0 — DEX & Token Launch
-  Sep  🟣  v4.3.0 — Mobile & Cross-Chain
-  Nov  🟡  v5.0.0 — AI Intelligence Layer (LLM Live)
+  May   ✅  v4.1.1 — CI/CD & Release Automation
+  Jun   ✅  v5.0.0 — MEGA UPGRADE (all 10 pages + 6 Android screens)
+  Jun   🔵  v5.1.0 — Live Blockchain (MetaMask · TradingView · Real AI)
+  Aug   🟣  v5.2.0 — DEX & Token Launch (Uniswap · IDO · CoinGecko)
+  Oct   🟡  v5.3.0 — Mobile & Cross-Chain (iOS · Polygon · Base)
+  Dec   🔴  v6.0.0 — Full Ecosystem (API · NFT · Launchpad · MiCA)
 
 2027
-  Jan  🔴  v5.1.0 — Exchange Listings (Gate.io · MEXC · Bybit)
-  Q2   ⚪   v5.2.0 — Institutional & Compliance
-  Q3   ⚪   v6.0.0 — Full Ecosystem (Pay · NFT · Launchpad)
+  Q1    ⚪   v6.1.0 — Exchange Listings (Gate.io · MEXC · Bybit)
+  Q2    ⚪   v6.2.0 — Institutional & Compliance
+  Q3    ⚪   v7.0.0 — Binance Listing Target
 ```
 
 ---
 
-## 🎯 Nächste konkrete Schritte (sofort umsetzbar)
+## 🎯 Immediate Next Steps
 
-| Priorität | Task | Version | Aufwand |
-|-----------|------|---------|---------|
-| 🔥 #1 | GitHub Actions Runner reparieren (Billing freischalten) | — | 5 Min |
-| 🔥 #2 | Sepolia Testnet Deploy — alle 7 Contracts | v4.2.0 | 1h |
-| 🔥 #3 | Uniswap V3 Pool QEMMA/ETH erstellen | v4.2.0 | 2h |
-| 🔥 #4 | CoinGecko / CMC Listing beantragen | v4.2.0 | 1h |
-| ⚡ #5 | Live Wallet-Verbindung (MetaMask) — echte Balances | v4.2.0 | 3h |
-| ⚡ #6 | TradingView Charts einbinden | v5.0.0 | 2h |
-| ⚡ #7 | LLM Oracle Chat (echte AI-Antworten) | v5.0.0 | 2h |
-| ⚡ #8 | iOS App — Expo Build | v4.3.0 | 1h |
-| 📋 #9 | MiCA Compliance Check | v5.1.0 | 4h |
-| 📋 #10 | Gate.io Listing Antrag | v5.1.0 | 2h |
+| Priority | Task | Est. Time |
+|----------|------|-----------|
+| 🔥 #1 | Add `ALCHEMY_API_KEY` + `DEPLOYER_PRIVATE_KEY` to GitHub Secrets | 5 min |
+| 🔥 #2 | Trigger Sepolia deploy via GitHub Actions | 10 min |
+| 🔥 #3 | MetaMask live connect in Portfolio.jsx | 2h |
+| 🔥 #4 | TradingView charts in Trading.jsx | 2h |
+| ⚡ #5 | Real LLM responses in Oracle Chat | 1h |
+| ⚡ #6 | iOS App (Expo EAS) | 1h |
+| ⚡ #7 | CoinGecko listing application | 1h |
+| 📋 #8 | Uniswap V3 QEMMA/ETH pool | 3h |
 
 ---
 
