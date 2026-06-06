@@ -211,18 +211,28 @@ export default function AgentsPage() {
     if(chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   },[messages,typing]);
 
-  const sendMessage = useCallback(() => {
+  const sendMessage = useCallback(async () => {
     if (!input.trim()) return;
     const userMsg = {id:Date.now(), role:"user", text:input};
     setMessages(prev=>[...prev, userMsg]);
+    const currentHistory = messages.slice(-8);
     setInput("");
     setTyping(true);
-    setTimeout(()=>{
+    try {
+      const res = await fetch("/functions/oracleChat", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ message: userMsg.text, history: currentHistory }),
+      });
+      const data = await res.json();
+      setTyping(false);
+      setMessages(prev=>[...prev, {id:Date.now()+1, role:"assistant", text:data.reply||data.error||"..."}]);
+    } catch {
       const resp = EMMA_RESPONSES[Math.floor(Math.random()*EMMA_RESPONSES.length)];
       setTyping(false);
       setMessages(prev=>[...prev, {id:Date.now()+1, role:"assistant", text:resp}]);
-    }, 1400+Math.random()*800);
-  },[input]);
+    }
+  },[input, messages]);
 
   const handleKey = e => { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} };
 
