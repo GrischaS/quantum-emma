@@ -13,6 +13,48 @@ const Q = {
 };
 
 function useTick(ms=120){const[t,setT]=useState(0);useEffect(()=>{const id=setInterval(()=>setT(n=>n+1),ms);return()=>clearInterval(id);},[ms]);return t;}
+// ─── METAMASK CONNECT HOOK ────────────────────────────────────────────────────
+function useWallet() {
+  const [account,   setAccount]   = useState(null);
+  const [chainId,   setChainId]   = useState(null);
+  const [balance,   setBalance]   = useState(null);
+  const [connecting,setConnecting]= useState(false);
+  const [error,     setError]     = useState(null);
+
+  const connect = async () => {
+    if (!window.ethereum) { setError("MetaMask not detected. Install MetaMask to connect."); return; }
+    setConnecting(true); setError(null);
+    try {
+      const accounts = await window.ethereum.request({ method:"eth_requestAccounts" });
+      const chain    = await window.ethereum.request({ method:"eth_chainId" });
+      const bal      = await window.ethereum.request({ method:"eth_getBalance", params:[accounts[0],"latest"] });
+      setAccount(accounts[0]);
+      setChainId(parseInt(chain,16));
+      setBalance((parseInt(bal,16)/1e18).toFixed(4));
+    } catch(e) { setError(e.message||"Connection failed"); }
+    setConnecting(false);
+  };
+
+  const disconnect = () => { setAccount(null); setBalance(null); setChainId(null); };
+
+  const shortAddr = account ? account.slice(0,6)+"..."+account.slice(-4) : null;
+  const networkName = chainId===1?"Ethereum":chainId===11155111?"Sepolia Testnet":chainId===137?"Polygon":chainId?"Chain #"+chainId:null;
+  const isMainnet = chainId===1;
+  const isSepolia = chainId===11155111;
+
+  useEffect(()=>{
+    if(!window.ethereum) return;
+    const handleAcc = (accs) => { if(accs.length===0) disconnect(); else setAccount(accs[0]); };
+    const handleChain = (c) => setChainId(parseInt(c,16));
+    window.ethereum.on("accountsChanged", handleAcc);
+    window.ethereum.on("chainChanged", handleChain);
+    return()=>{ window.ethereum.removeListener("accountsChanged",handleAcc); window.ethereum.removeListener("chainChanged",handleChain); };
+  },[]);
+
+  return { account, shortAddr, chainId, networkName, balance, connecting, error, connect, disconnect, isMainnet, isSepolia };
+}
+
+
 
 // ─── P&L SPARKLINE ────────────────────────────────────────────────────────────
 function PnLChart({ data, color, height=80 }) {
@@ -107,9 +149,69 @@ function TokenRow({ asset, tick }) {
   );
 }
 
+
+// ─── WALLET CONNECT PANEL ────────────────────────────────────────────────────
+function WalletConnectPanel({ wallet, tick }) {
+  const pulse = 0.5+Math.sin(tick*0.05)*0.3;
+  if (wallet.account) {
+    return (
+      <div style={{background:Q.bg1,borderRadius:16,padding:"16px 20px",
+        border:`1px solid ${Q.lepton}${Math.round((0.15+pulse*0.1)*255).toString(16).padStart(2,"0")}`,
+        boxShadow:`0 0 ${10+pulse*8}px ${Q.lepton}18`,marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <div style={{width:10,height:10,borderRadius:"50%",background:Q.lepton,
+              boxShadow:`0 0 ${6+pulse*4}px ${Q.lepton}`}}/>
+            <div>
+              <div style={{fontWeight:800,color:Q.lepton,fontSize:13}}>Wallet Connected</div>
+              <div style={{fontFamily:"monospace",fontSize:11,color:Q.mid}}>{wallet.shortAddr}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:11,color:Q.dim}}>Network</div>
+              <div style={{fontSize:12,fontWeight:700,color:wallet.isMainnet?Q.lepton:wallet.isSepolia?Q.higgs:Q.muon}}>
+                {wallet.networkName}
+              </div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:11,color:Q.dim}}>ETH Balance</div>
+              <div style={{fontSize:12,fontWeight:700,color:Q.gluon}}>{wallet.balance} ETH</div>
+            </div>
+            <button onClick={wallet.disconnect} style={{
+              padding:"6px 12px",borderRadius:8,border:`1px solid ${Q.tauon}44`,
+              background:`${Q.tauon}15`,color:Q.tauon,cursor:"pointer",fontSize:11,fontWeight:700}}>
+              Disconnect
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{background:Q.bg1,borderRadius:16,padding:"16px 20px",
+      border:`1px solid ${Q.plasma}${Math.round((0.12+pulse*0.1)*255).toString(16).padStart(2,"0")}`,
+      marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+      <div>
+        <div style={{fontWeight:800,color:Q.quark,fontSize:13}}>🔗 Connect Wallet</div>
+        <div style={{color:Q.dim,fontSize:11,marginTop:2}}>Connect MetaMask to see live balances</div>
+        {wallet.error && <div style={{color:Q.tauon,fontSize:11,marginTop:4}}>⚠️ {wallet.error}</div>}
+      </div>
+      <button onClick={wallet.connect} disabled={wallet.connecting} style={{
+        padding:"10px 24px",borderRadius:10,border:`1px solid ${Q.plasma}66`,cursor:"pointer",
+        background:`linear-gradient(135deg,${Q.plasma},${Q.gluon})`,
+        color:Q.bright,fontWeight:800,fontSize:13,
+        boxShadow:`0 0 ${12+pulse*8}px ${Q.plasma}44`,opacity:wallet.connecting?0.7:1}}>
+        {wallet.connecting?"🔄 Connecting...":"Connect MetaMask"}
+      </button>
+    </div>
+  );
+}
+
 // ─── MAIN PORTFOLIO ───────────────────────────────────────────────────────────
 export default function Portfolio() {
   const tick = useTick(120);
+  const wallet = useWallet();
   const [tab, setTab] = useState("overview");
   const [walletConnected, setWalletConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
