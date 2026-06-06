@@ -415,6 +415,49 @@ function RecentTrades({ price }) {
 }
 
 // ─── MAIN TRADING TERMINAL ────────────────────────────────────────────────────
+
+// ─── TRADINGVIEW LIVE CHART ───────────────────────────────────────────────────
+function TradingViewChart({ symbol="ETHUSD", theme="dark" }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if(!ref.current) return;
+    ref.current.innerHTML = "";
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+    script.type = "text/javascript";
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize:          true,
+      symbol:            symbol,
+      interval:          "60",
+      timezone:          "Europe/Berlin",
+      theme:             theme,
+      style:             "1",
+      locale:            "en",
+      enable_publishing: false,
+      allow_symbol_change: true,
+      hide_side_toolbar: false,
+      hide_top_toolbar:  false,
+      save_image:        false,
+      backgroundColor:   "rgba(0,0,8,1)",
+      gridColor:         "rgba(124,58,237,0.08)",
+      studies:           ["STD;EMA","STD;MACD","STD;Volume"],
+      container_id:      "tv_chart_container",
+    });
+    ref.current.appendChild(script);
+    return () => { if(ref.current) ref.current.innerHTML = ""; };
+  }, [symbol]);
+
+  return (
+    <div style={{width:"100%",height:400,borderRadius:14,overflow:"hidden",
+      border:`1px solid #7c3aed33`,background:"#000008",position:"relative"}}>
+      <div ref={ref} id="tv_chart_container"
+        className="tradingview-widget-container"
+        style={{width:"100%",height:"100%"}}/>
+    </div>
+  );
+}
+
 export default function TradingTerminal() {
   const tick = useTick(80);
   const prices = usePriceEngine();
