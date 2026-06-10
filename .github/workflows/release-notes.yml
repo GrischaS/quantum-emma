@@ -1,451 +1,143 @@
 # ============================================================
-#  QUANTUM EMMA — Auto Release Notes v4.1
-#  Triggers: git tag v*.*.* push
-#  Auto-generates: Changelog · GitHub Release · RELEASE.md
-#  © 2026 Grigori Saks — All Rights Reserved — Patent Pending
+#  QUANTUM EMMA — Auto Release Notes v5.2
+#  Triggered by: git tag v*.*.* push or workflow_dispatch
+#  (c) 2026 Grigori Saks — All Rights Reserved — Patent Pending
 # ============================================================
 
-name: 📋 Auto Release Notes
+name: "\U0001F4CB Auto Release Notes"
 
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. v4.2.0)'
+        description: "Version tag (e.g. v5.2.0)"
         required: true
-        default: 'v4.2.0'
+        default: "v5.2.0"
       prerelease:
-        description: 'Mark as pre-release?'
+        description: "Mark as pre-release?"
         required: false
-        default: 'false'
+        default: "false"
         type: choice
-        options: ['false', 'true']
+        options: ["false", "true"]
 
 permissions:
   contents: write
 
 jobs:
-  # ─── 1. COLLECT METADATA ──────────────────────────────────
-  collect:
-    name: 📊 Collect Release Metadata
+
+  # ─── 1. GENERATE RELEASE NOTES ────────────────────────────
+  generate:
+    name: "\U0001F4DD Generate Release Notes"
     runs-on: ubuntu-latest
     continue-on-error: true
-    outputs:
-      version:     ${{ steps.meta.outputs.version }}
-      tag:         ${{ steps.meta.outputs.tag }}
-      prev_tag:    ${{ steps.meta.outputs.prev_tag }}
-      commit_sha:  ${{ steps.meta.outputs.commit_sha }}
-      release_date:${{ steps.meta.outputs.release_date }}
-      commits_feat:${{ steps.commits.outputs.feat }}
-      commits_fix: ${{ steps.commits.outputs.fix }}
-      commits_all: ${{ steps.commits.outputs.all }}
-      stats_pages: ${{ steps.stats.outputs.pages }}
-      stats_contracts: ${{ steps.stats.outputs.contracts }}
-      stats_loc:   ${{ steps.stats.outputs.loc }}
-      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Extract metadata
-        id: meta
+      - name: Get version info
+        id: version
         run: |
-          # Version from tag or manual input
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ -n "${{ github.event.inputs.version }}" ]; then
             TAG="${{ github.event.inputs.version }}"
-            PRERELEASE="${{ github.event.inputs.prerelease }}"
           else
-            TAG="${GITHUB_REF#refs/tags/}"
-            # If tag contains alpha/beta/rc → prerelease
-            if echo "$TAG" | grep -qE '(alpha|beta|rc|pre)'; then
-              PRERELEASE="true"
-            else
-              PRERELEASE="false"
-            fi
+            TAG="${GITHUB_REF_NAME}"
           fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          echo "Tag: ${TAG}"
 
-          VERSION="${TAG#v}"
-          SHA=$(git rev-parse --short HEAD)
-          DATE=$(date -u +"%Y-%m-%d")
+      - name: Get previous tag
+        id: prev
+        run: |
+          PREV=$(git tag --sort=-version:refname | grep -v "${{ steps.version.outputs.tag }}" | head -1 || echo "")
+          echo "prev_tag=${PREV}" >> $GITHUB_OUTPUT
+          echo "Prev tag: ${PREV}"
+        continue-on-error: true
 
-          # Previous tag
-          PREV=$(git describe --abbrev=0 --tags HEAD~1 2>/dev/null || git rev-list --max-parents=0 HEAD 2>/dev/null | head -c 7 || echo "")
-
-          echo "tag=$TAG"             >> $GITHUB_OUTPUT
-          echo "version=$VERSION"     >> $GITHUB_OUTPUT
-          echo "prev_tag=$PREV"       >> $GITHUB_OUTPUT
-          echo "commit_sha=$SHA"      >> $GITHUB_OUTPUT
-          echo "release_date=$DATE"   >> $GITHUB_OUTPUT
-          echo "is_prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
-
-          echo "🏷️  Tag:      $TAG"
-          echo "📌 Version:  $VERSION"
-          echo "🔙 Prev tag: $PREV"
-          echo "📅 Date:     $DATE"
-
-      - name: Collect commits by category
+      - name: Collect commits
         id: commits
         run: |
-          PREV="${{ steps.meta.outputs.prev_tag }}"
-          RANGE="${PREV}..HEAD"
-          [ -z "$PREV" ] && RANGE="HEAD~20..HEAD"
+          PREV="${{ steps.prev.outputs.prev_tag }}"
+          if [ -n "${PREV}" ]; then
+            RANGE="${PREV}..HEAD"
+          else
+            RANGE="HEAD~20..HEAD"
+          fi
+          FEAT=$(git log ${RANGE} --oneline --no-merges 2>/dev/null | grep "^[a-f0-9]* feat" | wc -l || echo 0)
+          FIX=$(git log ${RANGE}  --oneline --no-merges 2>/dev/null | grep "^[a-f0-9]* fix"  | wc -l || echo 0)
+          CI=$(git log ${RANGE}   --oneline --no-merges 2>/dev/null | grep "^[a-f0-9]* ci"   | wc -l || echo 0)
+          ALL=$(git log ${RANGE}  --oneline --no-merges 2>/dev/null | wc -l || echo 0)
+          echo "feat=${FEAT}" >> $GITHUB_OUTPUT
+          echo "fix=${FIX}"   >> $GITHUB_OUTPUT
+          echo "ci=${CI}"     >> $GITHUB_OUTPUT
+          echo "total=${ALL}" >> $GITHUB_OUTPUT
+          echo "Commits — feat:${FEAT} fix:${FIX} ci:${CI} total:${ALL}"
+        continue-on-error: true
 
-          # Features
-          FEAT=$(git log $RANGE --oneline --no-merges --format="- %s (%h)" \
-            | grep -iE "^- (feat|add|new|implement|upgrade)" | head -25 || true)
-          # Fixes
-          FIX=$(git log $RANGE --oneline --no-merges --format="- %s (%h)" \
-            | grep -iE "^- (fix|bug|patch|hotfix|repair)" | head -15 || true)
-          # All
-          ALL=$(git log $RANGE --oneline --no-merges --format="- %s (%h)" | head -40 || true)
-
-          [ -z "$FEAT" ] && FEAT="- Incremental improvements and refinements"
-          [ -z "$FIX"  ] && FIX="- Stability and performance improvements"
-          [ -z "$ALL"  ] && ALL="- Multiple enhancements and fixes applied"
-
-          # Multi-line to env
-          {
-            echo 'feat<<ENDOFFEAT'
-            echo "$FEAT"
-            echo 'ENDOFFEAT'
-          } >> $GITHUB_OUTPUT
-          {
-            echo 'fix<<ENDOFFIX'
-            echo "$FIX"
-            echo 'ENDOFFIX'
-          } >> $GITHUB_OUTPUT
-          {
-            echo 'all<<ENDOFALL'
-            echo "$ALL"
-            echo 'ENDOFALL'
-          } >> $GITHUB_OUTPUT
-
-      - name: Collect codebase stats
+      - name: Get project stats
         id: stats
         run: |
-          PAGES=$(find pages/ -name "*.jsx" 2>/dev/null | wc -l | tr -d ' ')
-          CONTRACTS=$(find contracts/ -name "*.sol" -not -path "*/test/*" 2>/dev/null | wc -l | tr -d ' ')
-          LOC=$(find pages/ contracts/ android/src/ -name "*.jsx" -o -name "*.tsx" -o -name "*.sol" \
-            2>/dev/null | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+          PAGES=$(ls pages/*.jsx 2>/dev/null | wc -l || echo 10)
+          CONTRACTS=$(ls contracts/*.sol 2>/dev/null | wc -l || echo 7)
+          SCREENS=$(ls android/app/src/screens/*.tsx 2>/dev/null | wc -l || echo 6)
+          echo "pages=${PAGES}"         >> $GITHUB_OUTPUT
+          echo "contracts=${CONTRACTS}" >> $GITHUB_OUTPUT
+          echo "screens=${SCREENS}"     >> $GITHUB_OUTPUT
+        continue-on-error: true
 
-          echo "pages=$PAGES"       >> $GITHUB_OUTPUT
-          echo "contracts=$CONTRACTS" >> $GITHUB_OUTPUT
-          echo "loc=$LOC"           >> $GITHUB_OUTPUT
+      - name: Generate RELEASE.md
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          DATE="${{ steps.version.outputs.date }}"
+          FEAT="${{ steps.commits.outputs.feat }}"
+          FIX="${{ steps.commits.outputs.fix }}"
+          ALL="${{ steps.commits.outputs.total }}"
+          PREV="${{ steps.prev.outputs.prev_tag }}"
+          PAGES="${{ steps.stats.outputs.pages }}"
+          CONTRACTS="${{ steps.stats.outputs.contracts }}"
+          SCREENS="${{ steps.stats.outputs.screens }}"
 
-          echo "📊 Pages: $PAGES | Contracts: $CONTRACTS | LOC: $LOC"
+          cat > RELEASE.md << RELEOF
+          # Quantum Emma ${TAG} — Release Notes
+          **Date:** ${DATE}
+          **Commits:** ${ALL} total (${FEAT} features, ${FIX} fixes)
+          **Previous:** ${PREV}
 
-  # ─── 2. GENERATE RELEASE NOTES ────────────────────────────
-  generate:
-    name: 📋 Generate Release Notes
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    needs: collect
+          ## Stats
+          - Web Pages: ${PAGES}
+          - Smart Contracts: ${CONTRACTS}
+          - Android Screens: ${SCREENS}
 
-    steps:
-      - uses: actions/checkout@v4
+          ## Changelog
+          RELEOF
+
+          if [ -n "${PREV}" ]; then
+            git log ${PREV}..HEAD --oneline --no-merges 2>/dev/null | head -30 >> RELEASE.md || true
+          else
+            git log HEAD~10..HEAD --oneline --no-merges 2>/dev/null >> RELEASE.md || true
+          fi
+
+          echo "" >> RELEASE.md
+          echo "---" >> RELEASE.md
+          echo "(c) 2026 Grigori Saks — Quantum Emma — Patent Pending" >> RELEASE.md
+          cat RELEASE.md
+        continue-on-error: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          fetch-depth: 0
-
-      - name: Build RELEASE.md
-        id: build_notes
-        run: |
-          TAG="${{ needs.collect.outputs.tag }}"
-          VERSION="${{ needs.collect.outputs.version }}"
-          DATE="${{ needs.collect.outputs.release_date }}"
-          SHA="${{ needs.collect.outputs.commit_sha }}"
-          PAGES="${{ needs.collect.outputs.stats_pages }}"
-          CONTRACTS="${{ needs.collect.outputs.stats_contracts }}"
-          LOC="${{ needs.collect.outputs.stats_loc }}"
-
-          cat > RELEASE.md << RELEASEEOF
-          # 🚀 Quantum Emma Enterprise ${TAG}
-
-          > **Release Date:** ${DATE} · **SHA:** \`${SHA}\` · **Modules:** ${PAGES} · **Contracts:** ${CONTRACTS} · **LOC:** ${LOC}+
-          > © 2026 Grigori Saks — All Rights Reserved — Patent Pending
-
-          ---
-
-          ## 🌐 Live Deployments
-
-          | Platform | URL | Status |
-          |----------|-----|--------|
-          | 🏠 Base44 Web App | https://quantum-emma-app.base44.app | ✅ Live |
-          | ▲ Vercel | https://quantum-emma.vercel.app | ✅ Live |
-          | 🌐 Netlify | https://quantum-emma.netlify.app | ✅ Live |
-          | 🐙 GitHub | https://github.com/GrischaS/quantum-emma | ✅ Public |
-
-          ---
-
-          ## 🆕 New in ${TAG}
-
-          ### ✨ Features
-          ${{ needs.collect.outputs.commits_feat }}
-
-          ### 🐛 Bug Fixes
-          ${{ needs.collect.outputs.commits_fix }}
-
-          ---
-
-          ## 🏗 Platform Architecture
-
-          ### 🌐 Web App — 10 Enterprise Modules
-          | Module | Description | Status |
-          |--------|-------------|--------|
-          | 🏠 **Home** | Dashboard · Particle Field · Quantum Eye · HQMLL Live · Agent Feed | ✅ |
-          | 💹 **Trading** | Candles · Order Book · AI Signals · Leverage 1–50x · P&L Analytics | ✅ |
-          | 💼 **Wallet/Portfolio** | QEMMA Coin · Multi-Wallet · Send/Swap/Receive · TX History | ✅ |
-          | 👁 **Oracle AI** | Emma Chat · 12 Agents · Predictions · Code Gen · Memory | ✅ |
-          | 🧠 **Meta Memory TR2** | HQMLL 7-Layer · Krealogoik · Deep Loops · Research Sync | ✅ |
-          | 🔬 **Research** | 8 Domains · 847+ Sources · Live Market Signals | ✅ |
-          | ⛏ **Mining** | 4 Pools · Halving Clock · Block Explorer · Agent Coordination | ✅ |
-          | 💎 **Staking** | 60% APY · 5 Tiers · Auto-Compound · TVL $33M | ✅ |
-          | 🗳 **Governance** | DAO Voting · Treasury $10M · Proposals · Timelock | ✅ |
-          | ⚛️ **Platform** | Token Launch · Secret Tools · Cloud Drive · Enterprise | ✅ |
-
-          ### 📱 Android App (React Native / Expo)
-          - 6 Screens: Dashboard · Trading · Wallet · Staking · Mining · Oracle Chat
-          - Build: \`eas build --platform android --profile preview\`
-          - Output: \`QEMMA-${TAG}.apk\` (~48 MB)
-
-          ### 🖥 Windows Desktop (Electron)
-          - Build: \`npm run build:win\`
-          - Output: \`dist/QEMMA-Setup-${TAG}.exe\` (~148 MB)
-
-          ---
-
-          ## 📜 Smart Contracts — 7 Audited (Grade A+)
-
-          | Contract | Function | Status |
-          |----------|----------|--------|
-          | \`QEMMAToken\` | ERC-20 · 100M Supply · Metamorphic Phases | ✅ Audited |
-          | \`QEMMAMining\` | PoW Mining · 4 Pools · 12 Agent Coordination | ✅ Audited |
-          | \`QEMMAStaking\` | 5 Tiers · 60% APY · Auto-Compound · Lock Periods | ✅ Audited |
-          | \`QEMMAGovernance\` | DAO Voting · Timelock · Treasury Management | ✅ Audited |
-          | \`QEMMASwap\` | Uniswap V3 Integration · DEX Routing | ✅ Audited |
-          | \`QEMMAMetaCodex\` | On-Chain AI Architecture · 12 Self-Evolving Modules | ✅ Audited |
-          | \`QEMMAMetaMemory\` | Recursive Memory TR2 · HQMLL · Thought Trees | ✅ Audited |
-
-          ---
-
-          ## 🤖 AI System — Meta Genius TR2
-
-          | Component | Spec |
-          |-----------|------|
-          | Architecture | HQMLL 7-Layer Recursive |
-          | Active Agents | 12 (ALPHA-Q through OMEGA-12) |
-          | Accuracy | 98.3% |
-          | Krealogoik Events | 286+ |
-          | Memory Nodes | On-Chain (QEMMAMetaMemory) |
-          | Deep Loop Depth | 12 Recursion Levels |
-
-          ---
-
-          ## 🪙 QEMMA Token
-
-          | Property | Value |
-          |----------|-------|
-          | Standard | ERC-20 (Metamorphic) |
-          | Max Supply | 100,000,000 QEMMA |
-          | Circulating | 15,200,000 QEMMA (Genesis Phase) |
-          | Price | \$0.63 |
-          | IDO Target | \$0.15 |
-          | Exchange Path | Uniswap V3 → CoinGecko → Gate.io/MEXC → Bybit → Binance |
-
-          ---
-
-          ## 🔧 Build Reference
-
-          \`\`\`bash
-          # Clone
-          git clone https://github.com/GrischaS/quantum-emma.git
-          cd quantum-emma
-
-          # Smart Contracts
-          npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox @openzeppelin/contracts
-          cp deployment/hardhat.config.js hardhat.config.js
-          npx hardhat compile
-          npx hardhat test
-
-          # Deploy (Sepolia Testnet)
-          npx hardhat run contracts/deploy/deploy.js --network sepolia
-
-          # Deploy (Mainnet — requires DEPLOYER_PRIVATE_KEY)
-          npx hardhat run contracts/deploy/deploy.js --network mainnet
-
-          # Android APK
-          cd android && npm install && eas build --platform android --profile preview
-
-          # Windows EXE (requires Electron in root package.json)
-          npm run build:win
-          \`\`\`
-
-          ---
-
-          ## 📋 Full Changelog
-
-          \`\`\`
-          ${{ needs.collect.outputs.commits_all }}
-          \`\`\`
-
-          ---
-
-          ## 🔒 Security
-
-          - All smart contracts audited — Grade A+
-          - No hardcoded private keys in source
-          - ReentrancyGuard on all payable functions
-          - OpenZeppelin 5.x base contracts
-          - MIT License · Patent Pending
-
-          ---
-
-          *Built with ❤️ by Grigori Saks using Meta Genius TR2 · HQMLL Framework*
-          *© 2026 Grigori Saks — All Rights Reserved — Patent Pending*
-          RELEASEEOF
-
-          echo "✅ RELEASE.md generated ($(wc -l < RELEASE.md) lines)"
-
-      - name: Commit RELEASE.md to repo
-        run: |
-          git config user.email "grischasaks@gmail.com"
-          git config user.name "Quantum Emma Release Bot"
-          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-
-          # Check if on a tag — need to push to main branch
-          git fetch origin main
-          git checkout main 2>/dev/null || git checkout -b main
-
-          cp RELEASE.md RELEASE.md
-
-          git add RELEASE.md
-          git diff --staged --quiet && echo "No changes to RELEASE.md" || \
-            git commit -m "docs: Auto-generate RELEASE.md for ${{ needs.collect.outputs.tag }} [skip ci]"
-
-          git push origin main 2>/dev/null || echo "Push skipped (tag context)"
-
-      - name: Create GitHub Release
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs   = require('fs');
-            const tag  = "${{ needs.collect.outputs.tag }}";
-            const ver  = "${{ needs.collect.outputs.version }}";
-            const date = "${{ needs.collect.outputs.release_date }}";
-            const sha  = "${{ needs.collect.outputs.commit_sha }}";
-            const feat = `${{ needs.collect.outputs.commits_feat }}`;
-            const fix  = `${{ needs.collect.outputs.commits_fix }}`;
-            const all  = `${{ needs.collect.outputs.commits_all }}`;
-            const isPre= "${{ needs.collect.outputs.is_prerelease }}" === "true";
-
-            // Build rich release body
-            const body = `# 🚀 Quantum Emma Enterprise ${tag}
-
-            **Release Date:** ${date} · **SHA:** \`${sha}\` · **© 2026 Grigori Saks**
-
-            ---
-
-            ## 🌐 Live Deployments
-            | Platform | URL |
-            |----------|-----|
-            | 🏠 Base44 | https://quantum-emma-app.base44.app |
-            | ▲ Vercel  | https://quantum-emma.vercel.app |
-            | 🌐 Netlify | https://quantum-emma.netlify.app |
-
-            ---
-
-            ## 🆕 What's New in ${tag}
-
-            ### ✨ Features
-            ${feat}
-
-            ### 🐛 Fixes
-            ${fix}
-
-            ---
-
-            ## 📦 Downloads
-            | Platform | File | Size |
-            |----------|------|------|
-            | 🌐 Web App | https://quantum-emma-app.base44.app | Live |
-            | 🤖 Android | \`QEMMA-${tag}.apk\` | ~48 MB |
-            | 🖥 Windows | \`QEMMA-Setup-${tag}.exe\` | ~148 MB |
-
-            ---
-
-            ## 📜 Smart Contracts (7 · Audit Grade A+)
-            \`QEMMAToken · QEMMAMining · QEMMAStaking · QEMMAGovernance · QEMMASwap · QEMMAMetaCodex · QEMMAMetaMemory\`
-
-            ---
-
-            ## 📋 Full Changelog
-            \`\`\`
-            ${all}
-            \`\`\`
-
-            ---
-            *© 2026 Grigori Saks — All Rights Reserved — Patent Pending*
-            *Meta Genius TR2 · HQMLL Framework · Krealogoik Engine*`;
-
-            // Check for existing release
-            let releaseId = null;
-            try {
-              const { data } = await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo:  context.repo.repo,
-                tag:   tag,
-              });
-              releaseId = data.id;
-              core.info(`Updating existing release: ${releaseId}`);
-            } catch (_) {
-              core.info("Creating new release...");
-            }
-
-            if (releaseId) {
-              const { data } = await github.rest.repos.updateRelease({
-                owner:      context.repo.owner,
-                repo:       context.repo.repo,
-                release_id: releaseId,
-                name:       `⚛️ Quantum Emma Enterprise ${tag}`,
-                body,
-                draft:      false,
-                prerelease: isPre,
-              });
-              core.info(`✅ Updated: ${data.html_url}`);
-            } else {
-              const { data } = await github.rest.repos.createRelease({
-                owner:    context.repo.owner,
-                repo:     context.repo.repo,
-                tag_name: tag,
-                name:     `⚛️ Quantum Emma Enterprise ${tag}`,
-                body,
-                draft:    false,
-                prerelease: isPre,
-                generate_release_notes: false,
-              });
-              core.info(`✅ Created: ${data.html_url}`);
-              core.setOutput('release_url', data.html_url);
-            }
-
-      - name: Print summary
-        run: |
-          echo ""
-          echo "╔══════════════════════════════════════════════════════════╗"
-          echo "║   🚀 QUANTUM EMMA RELEASE NOTES GENERATED                ║"
-          echo "╠══════════════════════════════════════════════════════════╣"
-          echo "║   Tag:      ${{ needs.collect.outputs.tag }}"
-          echo "║   Date:     ${{ needs.collect.outputs.release_date }}"
-          echo "║   SHA:      ${{ needs.collect.outputs.commit_sha }}"
-          echo "║   Pages:    ${{ needs.collect.outputs.stats_pages }}"
-          echo "║   Contracts:${{ needs.collect.outputs.stats_contracts }}"
-          echo "║   LOC:      ${{ needs.collect.outputs.stats_loc }}+"
-          echo "╠══════════════════════════════════════════════════════════╣"
-          echo "║   Release: https://github.com/GrischaS/quantum-emma/releases ║"
-          echo "╠══════════════════════════════════════════════════════════╣"
-          echo "║   © 2026 Grigori Saks — Patent Pending                  ║"
-          echo "╚══════════════════════════════════════════════════════════╝"
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Quantum Emma ${{ steps.version.outputs.tag }}"
+          body_path: RELEASE.md
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Done
+        run: echo "Release notes generated for ${{ steps.version.outputs.tag }}"
