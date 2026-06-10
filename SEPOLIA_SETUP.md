@@ -1,116 +1,153 @@
-# ⛓ Sepolia Testnet Deployment Guide — Quantum Emma v5.0
-
-> Complete step-by-step guide to deploy all 7 QEMMA smart contracts
-> © 2026 Grigori Saks — All Rights Reserved
-
----
-
-## 📋 Prerequisites
-
-| Item | Where to get | Cost |
-|------|-------------|------|
-| **Alchemy API Key** | https://alchemy.com → New App → Ethereum Sepolia | Free |
-| **Deploy Wallet** | MetaMask → New Account "QEMMA Deploy" → Export Private Key | — |
-| **Sepolia ETH** | https://sepoliafaucet.com OR https://faucets.chain.link | Free |
-| **Etherscan API** | https://etherscan.io/myapikey | Free |
+# ⛓ Quantum Emma — Sepolia Testnet Deploy Guide
+**Version:** v5.3.0 · Stand: 10. Juni 2026  
+**© 2026 Grigori Saks — All Rights Reserved — Patent Pending**
 
 ---
 
-## 🚀 Method A — GitHub Actions (Recommended)
+## 🎯 Ziel
 
-### 1. Add Secrets to GitHub
-Go to: `github.com/GrischaS/quantum-emma/settings/secrets/actions`
+Alle **7 QEMMA Smart Contracts** auf dem Ethereum Sepolia Testnet deployen:
 
-Add these secrets:
+| Contract | Funktion |
+|----------|----------|
+| `QEMMAToken.sol` | ERC-20 Token (100M max supply) |
+| `QEMMAMining.sol` | Proof-of-Stake Mining Pools |
+| `QEMMAStaking.sol` | 5-Tier Staking (bis 60% APY) |
+| `QEMMAGovernance.sol` | DAO Governance & Voting |
+| `QEMMASwap.sol` | DEX Swap (Uniswap V3 kompatibel) |
+| `QEMMAMetaCodex.sol` | On-Chain AI Reasoning Layer |
+| `QEMMAMetaMemory.sol` | HQMLL 7-Layer Memory System |
+
+---
+
+## 📋 Schritt 1 — Alchemy API Key holen
+
+1. Gehe zu **https://alchemy.com** und registriere dich (kostenlos)
+2. Klicke **"Create App"**
+3. Name: `Quantum Emma Sepolia`
+4. Chain: **Ethereum** · Network: **Sepolia**
+5. App erstellen → **"API Key"** kopieren
+
 ```
-ALCHEMY_API_KEY       = your_alchemy_key_here
-DEPLOYER_PRIVATE_KEY  = 0xyour_private_key_here
-ETHERSCAN_API_KEY     = your_etherscan_key_here
-VERCEL_TOKEN          = your_vercel_token (for web deploy)
-NETLIFY_AUTH_TOKEN    = your_netlify_token (for web deploy)
-NETLIFY_SITE_ID       = your_netlify_site_id
+ALCHEMY_API_KEY = dein_key_hier
 ```
-
-### 2. Trigger Deploy
-- Go to: Actions → "⛓ Sepolia Contract Deploy" → Run workflow
-- Type `DEPLOY` in the confirm field
-- Select network: `sepolia`
-- Click "Run workflow"
-
-### 3. View Results
-- Etherscan: https://sepolia.etherscan.io
-- Artifact: Download `sepolia-contracts-*.zip` from the workflow run
 
 ---
 
-## 🔧 Method B — Local Deploy
+## 🔑 Schritt 2 — Deploy Wallet erstellen
 
-### 1. Clone & setup
+> ⚠️ **WICHTIG:** Nutze eine **dedizierte Deploy-Wallet** — NIEMALS deine Haupt-Wallet!
+
+### Option A: MetaMask (empfohlen)
+1. MetaMask öffnen → **"Create Account"**
+2. Name: `QEMMA Deploy Wallet`
+3. Konto → **drei Punkte → Account Details → Export Private Key**
+4. Private Key kopieren (mit `0x` Prefix)
+
+### Option B: Neu generieren (sicher)
 ```bash
-git clone https://github.com/GrischaS/quantum-emma.git
+node -e "const {ethers}=require('ethers'); const w=ethers.Wallet.createRandom(); console.log('Address:',w.address,'\nKey:',w.privateKey)"
+```
+
+```
+DEPLOYER_PRIVATE_KEY = 0x_dein_private_key
+```
+
+---
+
+## 💧 Schritt 3 — Sepolia ETH holen (kostenlos)
+
+Du brauchst ~0.1 ETH für Gas. Hol dir Testnet-ETH von einem dieser Faucets:
+
+| Faucet | URL | Limit |
+|--------|-----|-------|
+| Alchemy | https://sepoliafaucet.com | 0.5 ETH/Tag |
+| Chainlink | https://faucets.chain.link/sepolia | 0.1 ETH |
+| Infura | https://www.infura.io/faucet/sepolia | 0.5 ETH/Tag |
+| QuickNode | https://faucet.quicknode.com/ethereum/sepolia | 0.1 ETH |
+
+→ Deine Wallet-Adresse eingeben → ETH erhalten (~1 Min)
+
+---
+
+## 🔐 Schritt 4 — GitHub Secrets setzen
+
+Gehe zu:  
+**https://github.com/GrischaS/quantum-emma/settings/secrets/actions**
+
+Klicke **"New repository secret"** und füge hinzu:
+
+| Secret Name | Wert | Pflicht |
+|-------------|------|---------|
+| `DEPLOYER_PRIVATE_KEY` | `0x...` dein Private Key | ✅ |
+| `ALCHEMY_API_KEY` | dein Alchemy Key | ✅ |
+| `ETHERSCAN_API_KEY` | von etherscan.io | optional |
+
+> **Etherscan API Key** (für Contract-Verifizierung):  
+> https://etherscan.io → Account → **API Keys** → Add
+
+---
+
+## 🚀 Schritt 5 — Deploy starten
+
+### Via GitHub Actions (empfohlen):
+1. Gehe zu: **https://github.com/GrischaS/quantum-emma/actions**
+2. Wähle **"⛓ Sepolia Contract Deploy"**
+3. Klicke **"Run workflow"**
+4. `confirm` Feld: Tippe **`DEPLOY`**
+5. Network: **`sepolia`**
+6. **"Run workflow"** klicken → ~5 Min warten
+
+### Lokal (alternativ):
+```bash
+git clone https://github.com/GrischaS/quantum-emma
 cd quantum-emma
+
+# .env anlegen
+cat > .env << EOF
+DEPLOYER_PRIVATE_KEY=0x_dein_key
+ALCHEMY_API_KEY=dein_alchemy_key
+ETHERSCAN_API_KEY=dein_etherscan_key
+EOF
+
 npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox @openzeppelin/contracts ethers dotenv
 cp deployment/hardhat.config.js hardhat.config.js
-```
-
-### 2. Create .env file
-```bash
-cat > .env << EOF
-ALCHEMY_API_KEY=your_key_here
-DEPLOYER_PRIVATE_KEY=0xyour_private_key
-ETHERSCAN_API_KEY=your_etherscan_key
-EOF
-```
-
-### 3. Run deploy script
-```bash
 npx hardhat compile
 npx hardhat run contracts/deploy/deploy.js --network sepolia
 ```
 
-### 4. Expected output
+---
+
+## ✅ Schritt 6 — Ergebnis prüfen
+
+Nach dem Deploy erscheinen die **Contract-Adressen** im GitHub Actions Log.  
+Öffne den Run → **"Deploy to Sepolia"** → Scroll ans Ende.
+
+Beispiel-Output:
 ```
-╔══════════════════════════════════════════════════════╗
-║        QUANTUM EMMA — ENTERPRISE DEPLOY v2.0         ║
-╚══════════════════════════════════════════════════════╝
-
-✅ QEMMAToken:     0x1234...abcd
-✅ QEMMAMining:    0x2345...bcde
-✅ QEMMAStaking:   0x3456...cdef
-✅ QEMMAGovernance:0x4567...def0
-✅ QEMMASwap:      0x5678...ef01
-✅ QEMMAMetaCodex: 0x6789...f012
-✅ QEMMAMetaMemory:0x7890...0123
-
-🎉 All 7 contracts deployed & verified!
-📁 Saved: deployment-sepolia.json
+✅ QEMMAToken deployed:      0x1234...abcd
+✅ QEMMAMining deployed:     0x2345...bcde
+✅ QEMMAStaking deployed:    0x3456...cdef
+✅ QEMMAGovernance deployed: 0x4567...def0
+✅ QEMMASwap deployed:       0x5678...ef01
+✅ QEMMAMetaCodex deployed:  0x6789...f012
+✅ QEMMAMetaMemory deployed: 0x7890...0123
 ```
 
----
-
-## 📊 Contract Details
-
-| Contract | Function | Gas Est. |
-|----------|---------|---------|
-| **QEMMAToken** | ERC-20, 100M supply, metamorphic phases | ~800K gas |
-| **QEMMAMining** | Proof-of-Work, halving every 210K blocks | ~600K gas |
-| **QEMMAStaking** | 5 tiers, 12–60% APY, auto-compound | ~700K gas |
-| **QEMMAGovernance** | DAO voting, treasury, proposals | ~900K gas |
-| **QEMMASwap** | Uniswap V3 integration, DEX swap | ~1.1M gas |
-| **QEMMAMetaCodex** | On-chain AI reasoning, HQMLL | ~1.3M gas |
-| **QEMMAMetaMemory** | Recursive memory storage, loops | ~950K gas |
-
-**Total estimated gas:** ~6.35M gas (~0.025 ETH on Sepolia)
+Contracts auf Etherscan prüfen:  
+**https://sepolia.etherscan.io/address/0x...**
 
 ---
 
-## 🔗 After Deployment
+## 🔗 Nach dem Deploy — Nächste Schritte
 
-1. **Update frontend** — copy addresses from `deployment-sepolia.json` to your `.env`
-2. **Verify on Etherscan** — `npx hardhat verify --network sepolia <address>`
-3. **Add liquidity** — deploy initial QEMMA/ETH pool on Uniswap V3 Sepolia
-4. **Test IDO flow** — run whitelist → purchase → vesting cycle
+- [ ] Contract-Adressen in `src/config/contracts.ts` eintragen
+- [ ] MetaMask auf Sepolia umschalten und testen
+- [ ] Staking / Mining / Swap via Frontend testen
+- [ ] Etherscan Verifizierung: `npx hardhat verify --network sepolia <address>`
+- [ ] Uniswap V3 QEMMA/ETH Pool auf Sepolia anlegen
+- [ ] CoinGecko Testnet-Listing beantragen
 
 ---
 
-*© 2026 Grigori Saks — Quantum Emma Enterprise v5.0 — Patent Pending*
+*© 2026 Grigori Saks — Quantum Emma · Patent Pending*
