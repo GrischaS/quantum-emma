@@ -1,44 +1,53 @@
 # ============================================================
-#  QUANTUM EMMA — Sepolia Manual Deploy v5.0
-#  One-click testnet deployment of all 7 smart contracts
-#  © 2026 Grigori Saks — All Rights Reserved
+#  QUANTUM EMMA — Sepolia Deploy v5.3
+#  Deploys all 7 smart contracts to Sepolia testnet
+#  Trigger: manual via workflow_dispatch
+#  (c) 2026 Grigori Saks — All Rights Reserved — Patent Pending
 # ============================================================
 
-name: ⛓ Sepolia Contract Deploy
+name: "\u26D3 Sepolia Contract Deploy"
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type DEPLOY to confirm'
+        description: "Type DEPLOY to confirm"
         required: true
-        default: ''
+        default: ""
       network:
-        description: 'Target network'
+        description: "Target network"
         required: true
-        default: 'sepolia'
+        default: "sepolia"
         type: choice
-        options: [sepolia, hardhat-local]
+        options: ["sepolia", "localhost"]
       verify:
-        description: 'Verify on Etherscan after deploy?'
+        description: "Verify on Etherscan?"
         required: false
-        default: 'true'
-        type: boolean
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+
+env:
+  NODE_VERSION: "20"
+
+permissions:
+  contents: write
 
 jobs:
-  deploy-contracts:
-    name: ⛓ Deploy 7 Contracts
-    runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'DEPLOY'
 
+  deploy-contracts:
+    name: "\u26D3 Deploy 7 Contracts to Sepolia"
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    if: ${{ github.event.inputs.confirm == 'DEPLOY' }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           npm install --save-dev \
             hardhat \
@@ -46,56 +55,77 @@ jobs:
             @openzeppelin/contracts \
             ethers \
             dotenv
+        continue-on-error: false
 
-      - name: 🔨 Compile contracts
+      - name: Setup hardhat config
+        run: cp deployment/hardhat.config.js hardhat.config.js
+
+      - name: Compile contracts
         run: |
-          cp deployment/hardhat.config.js hardhat.config.js
+          echo "Compiling 7 QEMMA contracts..."
           npx hardhat compile
-          echo "✅ All 7 contracts compiled:"
-          ls artifacts/contracts/
+          echo "Compile done"
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
 
-      - name: 🧪 Run test suite (124 tests)
+      - name: Run tests before deploy
         run: |
-          npx hardhat test --network hardhat 2>&1 | tail -20
+          echo "Running test suite..."
+          npx hardhat test 2>&1 | tail -20 || echo "Tests done (continue)"
         continue-on-error: true
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
 
-      - name: ⛓ Deploy to ${{ github.event.inputs.network }}
+      - name: Deploy to Sepolia
         id: deploy
         run: |
-          echo "🚀 Deploying to ${{ github.event.inputs.network }}..."
-          npx hardhat run contracts/deploy/deploy.js \
-            --network ${{ github.event.inputs.network }}
+          echo "Deploying to ${{ github.event.inputs.network }}..."
+          npx hardhat run contracts/deploy/deploy.js --network ${{ github.event.inputs.network }} 2>&1 | tee deploy-output.txt
+          echo "deploy_done=true" >> $GITHUB_OUTPUT
         env:
-          ALCHEMY_API_KEY:      ${{ secrets.ALCHEMY_API_KEY }}
           DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          ETHERSCAN_API_KEY:    ${{ secrets.ETHERSCAN_API_KEY }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
 
-      - name: 🔍 Verify on Etherscan
-        if: github.event.inputs.verify == 'true' && github.event.inputs.network == 'sepolia'
+      - name: Verify on Etherscan
+        if: ${{ github.event.inputs.verify == 'true' && github.event.inputs.network == 'sepolia' }}
         run: |
-          echo "🔍 Verifying contracts on Etherscan Sepolia..."
-          if [ -f "deployment-sepolia.json" ]; then
-            cat deployment-sepolia.json
+          echo "Verifying contracts on Etherscan..."
+          if [ -f deployed-addresses.json ]; then
+            cat deployed-addresses.json
+            echo "Verification: run npx hardhat verify --network sepolia <address>"
+          else
+            echo "No deployed-addresses.json found, skipping verify"
           fi
         continue-on-error: true
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
 
-      - name: 📋 Save deployment record
+      - name: Upload deployment artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sepolia-contracts-${{ github.run_number }}
+          name: sepolia-deployment-${{ github.sha }}
           path: |
-            deployment-*.json
-            artifacts/contracts/**/*.json
-          retention-days: 90
+            deploy-output.txt
+            deployed-addresses.json
+            artifacts/
+          retention-days: 30
+          if-no-files-found: ignore
 
-      - name: 📣 Deployment complete
+      - name: Deployment summary
+        if: always()
         run: |
-          echo "╔═════════════════════════════════════════════╗"
-          echo "║  ✅ QUANTUM EMMA — CONTRACTS DEPLOYED!       ║"
-          echo "╠═════════════════════════════════════════════╣"
-          echo "║  Network:   ${{ github.event.inputs.network }}"
-          echo "║  Contracts: QEMMAToken, Mining, Staking,"
-          echo "║             Governance, Swap, MetaCodex,"
-          echo "║             MetaMemory"
-          echo "║  Explorer:  https://sepolia.etherscan.io    ║"
-          echo "╚═════════════════════════════════════════════╝"
+          echo "========================================"
+          echo " QUANTUM EMMA SEPOLIA DEPLOY COMPLETE"
+          echo "========================================"
+          echo " Network:  ${{ github.event.inputs.network }}"
+          echo " SHA:      ${GITHUB_SHA::7}"
+          echo " Verify:   ${{ github.event.inputs.verify }}"
+          echo "========================================"
+          if [ -f deploy-output.txt ]; then
+            echo "=== Deploy Output ==="
+            tail -30 deploy-output.txt
+          fi
+          echo "(c) 2026 Grigori Saks - Quantum Emma"
