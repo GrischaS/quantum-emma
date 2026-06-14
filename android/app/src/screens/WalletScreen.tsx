@@ -1,253 +1,319 @@
 // ============================================================
-//  QUANTUM EMMA — Android Wallet & Portfolio v5.0
-//  Live Holdings · P&L · Staking · Send/Receive
-//  © 2026 Grigori Saks — All Rights Reserved
+//  QUANTUM EMMA — Wallet Screen v2 (Android)
+//  Send · Receive · Swap · QR · Multi-Asset · Transaction History
+//  (c) 2026 Grigori Saks — All Rights Reserved — Patent Pending
 // ============================================================
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Dimensions, StatusBar } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width: W } = Dimensions.get('window');
-const Q = {
-  void:'#000008', bg1:'#06001e', bg2:'#0a002e',
-  plasma:'#7c3aed', neutrino:'#8b5cf6', quark:'#a78bfa', gluon:'#06b6d4',
-  photon:'#00ffff', higgs:'#fbbf24', boson:'#f472b6', lepton:'#4ade80',
-  muon:'#fb923c', tauon:'#f87171', bright:'#f0f4ff', mid:'#94a3b8', dim:'#475569',
-};
+import React, { useState, useEffect, useRef } from "react";
+import {
+  View, Text, ScrollView, TouchableOpacity,
+  StyleSheet, TextInput, Animated, Dimensions,
+} from "react-native";
+
+const { width } = Dimensions.get("window");
 
 const ASSETS = [
-  { sym:'QEMMA', name:'Quantum Emma',  balance:50000,  price:0.6300, change:+2.47,  color:Q.neutrino },
-  { sym:'ETH',   name:'Ethereum',       balance:3.24,   price:3241.5, change:+1.12,  color:Q.gluon   },
-  { sym:'BTC',   name:'Bitcoin',         balance:0.082,  price:67820,  change:-0.34,  color:Q.higgs   },
-  { sym:'USDT',  name:'Tether',          balance:4200,   price:1.00,   change:+0.01,  color:Q.lepton  },
+  { symbol:"QEMMA", name:"Quantum Emma",  icon:"⚛️", balance:15000,   price:0.63,  color:"#00ffff" },
+  { symbol:"ETH",   name:"Ethereum",      icon:"⟠",  balance:1.247,   price:3820,  color:"#8080ff" },
+  { symbol:"USDC",  name:"USD Coin",      icon:"💵", balance:2400,    price:1.00,  color:"#00ff80" },
+  { symbol:"WBTC",  name:"Wrapped BTC",   icon:"₿",  balance:0.018,   price:67400, color:"#ffaa00" },
 ];
 
 const TX_HISTORY = [
-  { type:'Swap',    desc:'ETH → QEMMA',    amt:'+15,820 QEMMA', usd:'$9,968', time:'2h ago',  color:Q.lepton,  icon:'⚡' },
-  { type:'Stake',   desc:'QEMMA Quantum',  amt:'-25,000 QEMMA', usd:'$15,750',time:'1d ago',  color:Q.plasma, icon:'🔒' },
-  { type:'Receive', desc:'Mining Reward',   amt:'+420 QEMMA',    usd:'$265',   time:'2d ago',  color:Q.lepton,  icon:'⛏' },
-  { type:'Send',    desc:'→ 0x7f3a...',    amt:'-500 USDT',     usd:'$500',   time:'3d ago',  color:Q.tauon,   icon:'↗' },
-  { type:'Buy',     desc:'ETH Purchase',   amt:'+1.5 ETH',      usd:'$4,862', time:'5d ago',  color:Q.gluon,   icon:'💎' },
+  { id:1, type:"receive", asset:"QEMMA", amount:500,   from:"0xAbc...123", ts:"14 Jun, 09:41", status:"confirmed" },
+  { id:2, type:"send",    asset:"ETH",   amount:0.1,   to:"0xDef...456",   ts:"13 Jun, 18:22", status:"confirmed" },
+  { id:3, type:"swap",    asset:"USDC",  amount:200,   pair:"ETH→USDC",    ts:"13 Jun, 14:07", status:"confirmed" },
+  { id:4, type:"stake",   asset:"QEMMA", amount:1000,  pool:"Meta Codex",  ts:"12 Jun, 11:30", status:"confirmed" },
+  { id:5, type:"reward",  asset:"QEMMA", amount:87.4,  from:"Staking",     ts:"11 Jun, 00:00", status:"confirmed" },
 ];
 
+const C = {
+  bg:"#000d1a", card:"#000f22", cyan:"#00ffff",
+  green:"#00ff80", red:"#ff4444", gold:"#ffd700",
+  dim:"#556677", dimmer:"#334455", border:"rgba(0,255,255,0.12)",
+};
+
+const TX_ICON: Record<string, string> = {
+  receive:"⬇️", send:"⬆️", swap:"💱", stake:"🏦", reward:"🎁",
+};
+const TX_COLOR: Record<string, string> = {
+  receive: C.green, send: C.red, swap: C.cyan, stake: "#8080ff", reward: C.gold,
+};
+
 export default function WalletScreen() {
-  const [tick, setTick] = useState(0);
-  const [tab, setTab]   = useState<'portfolio'|'send'|'receive'|'history'>('portfolio');
-  const [sendTo, setSendTo]   = useState('');
-  const [sendAmt, setSendAmt] = useState('');
-  const [sent, setSent]       = useState(false);
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [connecting, setConnecting] = useState(false);
+  const [tab,      setTab]      = useState<"assets"|"send"|"receive"|"history">("assets");
+  const [selAsset, setSelAsset] = useState(ASSETS[0]);
+  const [sendAmt,  setSendAmt]  = useState("");
+  const [sendAddr, setSendAddr] = useState("");
+  const [sending,  setSending]  = useState(false);
+  const [sent,     setSent]     = useState(false);
+  const [prices,   setPrices]   = useState(Object.fromEntries(ASSETS.map(a => [a.symbol, a.price])));
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => { const id = setInterval(() => setTick(t => t+1), 1000); return () => clearInterval(id); }, []);
+  const totalUSD = ASSETS.reduce((s, a) => s + a.balance * (prices[a.symbol] || a.price), 0);
 
-  const prices = ASSETS.map(a => ({
-    ...a,
-    price: a.sym === 'USDT' ? 1 : a.price * (1 + Math.sin(tick * 0.05 + ASSETS.indexOf(a)) * 0.003),
-  }));
-  const totalValue = prices.reduce((s, a) => s + a.balance * a.price, 0);
-  const totalPnl   = prices.reduce((s, a) => s + a.balance * a.price * a.change / 100, 0);
+  // Subtle price animation
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulseAnim, { toValue:1.04, duration:1200, useNativeDriver:true }),
+      Animated.timing(pulseAnim, { toValue:1.0,  duration:1200, useNativeDriver:true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, []);
 
-  const connect = () => {
-    setConnecting(true);
-    setTimeout(() => { setConnecting(false); setWalletConnected(true); }, 1800);
-  };
-  const handleSend = () => {
-    setSent(true); setSendTo(''); setSendAmt('');
-    setTimeout(() => setSent(false), 3000);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setPrices(p => ({
+        ...p,
+        QEMMA: parseFloat((p.QEMMA + (Math.random()-0.49)*0.003).toFixed(4)),
+        ETH:   parseFloat((p.ETH   + (Math.random()-0.49)*5).toFixed(2)),
+      }));
+    }, 3000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const handleSend = async () => {
+    if (!sendAmt || !sendAddr) return;
+    setSending(true);
+    await new Promise(r => setTimeout(r, 2000));
+    setSending(false); setSent(true);
+    setTimeout(() => { setSent(false); setSendAmt(""); setSendAddr(""); setTab("history"); }, 2500);
   };
 
   return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={Q.void} />
-      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex:1, backgroundColor:C.bg }} showsVerticalScrollIndicator={false}>
 
-        {/* HEADER */}
-        <LinearGradient colors={[Q.bg1, Q.bg2]} style={s.header}>
-          <Text style={s.headerTitle}>💼 Portfolio v5.0</Text>
-          <Text style={s.totalVal}>${totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</Text>
-          <Text style={[s.pnl, { color: totalPnl >= 0 ? Q.lepton : Q.tauon }]}>
-            {totalPnl >= 0 ? '▲' : '▼'} ${Math.abs(totalPnl).toFixed(2)} today
-          </Text>
-          {walletConnected ? (
-            <View style={s.connectedBadge}>
-              <View style={s.connectedDot} />
-              <Text style={s.connectedText}>0x7f3a...k9Qm</Text>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={connect} style={s.connectBtn}>
-              <Text style={s.connectText}>{connecting ? '⏳ Connecting...' : '🔗 Connect Wallet'}</Text>
-            </TouchableOpacity>
-          )}
-        </LinearGradient>
+      {/* Header */}
+      <View style={s.header}>
+        <Text style={s.title}>💼 Wallet</Text>
+        <TouchableOpacity style={s.scanBtn}>
+          <Text style={{ color:C.cyan, fontSize:22 }}>⊡</Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* TABS */}
-        <View style={s.tabRow}>
-          {(['portfolio','send','receive','history'] as const).map(t => (
-            <TouchableOpacity key={t} onPress={() => setTab(t)}
-              style={[s.tabBtn, tab === t && s.tabActive]}>
-              <Text style={[s.tabText, tab === t && s.tabTextActive]}>
-                {t === 'portfolio' ? '💼' : t === 'send' ? '📤' : t === 'receive' ? '📥' : '📋'}
-                {' '}{t.charAt(0).toUpperCase() + t.slice(1)}
-              </Text>
+      {/* Total Balance */}
+      <View style={s.balanceCard}>
+        <Text style={s.balLabel}>Gesamtwert</Text>
+        <Animated.Text style={[s.balTotal, { transform:[{ scale:pulseAnim }] }]}>
+          ${totalUSD.toLocaleString("en",{ maximumFractionDigits:0 })}
+        </Animated.Text>
+        <Text style={{ color:C.green, fontSize:14, fontWeight:"700", marginTop:4 }}>▲ +4.1% heute</Text>
+
+        {/* Action Buttons */}
+        <View style={s.actionRow}>
+          {[
+            { label:"Senden",    icon:"⬆️", tab:"send"    },
+            { label:"Empfangen", icon:"⬇️", tab:"receive" },
+            { label:"Tauschen",  icon:"💱", tab:"assets"  },
+            { label:"Verlauf",   icon:"📋", tab:"history" },
+          ].map(({ label, icon, tab:t }) => (
+            <TouchableOpacity key={label} onPress={() => setTab(t as any)} style={s.actionBtn}>
+              <View style={[s.actionIcon, { borderColor: tab===t ? C.cyan : C.dimmer,
+                                            backgroundColor: tab===t ? "rgba(0,255,255,0.1)" : "transparent" }]}>
+                <Text style={{ fontSize:20 }}>{icon}</Text>
+              </View>
+              <Text style={{ color: tab===t ? C.cyan : C.dim, fontSize:11, marginTop:6, fontWeight:"700" }}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
+      </View>
 
-        {/* PORTFOLIO */}
-        {tab === 'portfolio' && (
-          <View style={s.section}>
-            {prices.map((a, i) => {
-              const value = a.balance * a.price;
-              const isUp  = a.change >= 0;
-              return (
-                <LinearGradient key={i} colors={[a.color + '12', a.color + '06']} style={s.assetCard}>
-                  <View style={[s.assetDot, { backgroundColor: a.color }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.assetSym}>{a.sym}</Text>
-                    <Text style={s.assetName}>{a.name}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={s.assetVal}>${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</Text>
-                    <Text style={[s.assetChg, { color: isUp ? Q.lepton : Q.tauon }]}>
-                      {isUp ? '+' : ''}{a.change.toFixed(2)}% · {a.balance.toLocaleString()} {a.sym}
-                    </Text>
-                  </View>
-                </LinearGradient>
-              );
-            })}
-          </View>
-        )}
+      {/* Assets Tab */}
+      {tab === "assets" && (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Meine Assets</Text>
+          {ASSETS.map(a => {
+            const livePrice = prices[a.symbol] || a.price;
+            const usdVal    = a.balance * livePrice;
+            return (
+              <TouchableOpacity key={a.symbol} onPress={() => setSelAsset(a)}
+                style={[s.assetRow, selAsset.symbol === a.symbol && { borderColor: a.color + "66",
+                                                                        backgroundColor: a.color + "0a" }]}>
+                <View style={[s.assetIcon, { borderColor: a.color + "44" }]}>
+                  <Text style={{ fontSize:22 }}>{a.icon}</Text>
+                </View>
+                <View style={{ flex:1, marginLeft:12 }}>
+                  <Text style={{ color:"#e0f0ff", fontWeight:"800", fontSize:15 }}>{a.symbol}</Text>
+                  <Text style={{ color:C.dim, fontSize:12 }}>{a.name}</Text>
+                </View>
+                <View style={{ alignItems:"flex-end" }}>
+                  <Text style={{ color:a.color, fontWeight:"800", fontSize:16 }}>
+                    {a.balance.toLocaleString("en",{ maximumFractionDigits:4 })}
+                  </Text>
+                  <Text style={{ color:C.dim, fontSize:12 }}>
+                    ${usdVal.toLocaleString("en",{ maximumFractionDigits:0 })}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
-        {/* SEND */}
-        {tab === 'send' && (
-          <LinearGradient colors={[Q.bg1, Q.bg2]} style={[s.card, { marginBottom: 32 }]}>
-            <Text style={s.cardTitle}>📤 Send Tokens</Text>
-            <TextInput placeholder="Recipient Address (0x...)" placeholderTextColor={Q.dim}
-              value={sendTo} onChangeText={setSendTo} style={s.input} />
-            <TextInput placeholder="Amount" placeholderTextColor={Q.dim} keyboardType="numeric"
-              value={sendAmt} onChangeText={setSendAmt} style={s.input} />
-            <View style={s.tokenRow}>
-              {['QEMMA','ETH','USDT'].map(t => (
-                <TouchableOpacity key={t} style={s.tokenBtn}>
-                  <Text style={{ color: Q.quark, fontSize: 11, fontWeight: '700' }}>{t}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {sendTo && sendAmt ? (
-              <View style={s.txInfo}>
-                <Text style={s.txInfoText}>Network fee: ~$2.40 ETH</Text>
-                <Text style={s.txInfoText}>Total: {sendAmt} + fee</Text>
-              </View>
-            ) : null}
-            <TouchableOpacity onPress={handleSend}
-              style={[s.actionBtn, { backgroundColor: sent ? Q.lepton : Q.plasma, opacity: sendTo && sendAmt ? 1 : 0.4 }]}>
-              <Text style={s.actionBtnText}>{sent ? '✅ Sent!' : '📤 Confirm Send'}</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        )}
-
-        {/* RECEIVE */}
-        {tab === 'receive' && (
-          <LinearGradient colors={[Q.bg1, Q.bg2]} style={[s.card, { alignItems: 'center', marginBottom: 32 }]}>
-            <Text style={s.cardTitle}>📥 Receive QEMMA</Text>
-            {/* QR Placeholder */}
-            <View style={s.qrBox}>
-              <Text style={{ fontSize: 60 }}>⬛</Text>
-              <Text style={{ color: Q.dim, fontSize: 10, marginTop: 8 }}>QR Code</Text>
-            </View>
-            <View style={s.addrBox}>
-              <Text style={s.addrText} numberOfLines={1} ellipsizeMode="middle">
-                0x7f3a9bC4...k9QmX1234
+      {/* Send Tab */}
+      {tab === "send" && (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>⬆️ Senden</Text>
+          {sent ? (
+            <View style={{ padding:32, alignItems:"center" }}>
+              <Text style={{ fontSize:48 }}>✅</Text>
+              <Text style={{ color:C.green, fontWeight:"900", fontSize:22, marginTop:12 }}>Gesendet!</Text>
+              <Text style={{ color:C.dim, marginTop:8, fontSize:13, textAlign:"center" }}>
+                Transaktion wird auf Sepolia bestätigt...
               </Text>
             </View>
-            <Text style={{ color: Q.dim, fontSize: 11, marginTop: 8, textAlign:'center' }}>
-              Only send QEMMA and ERC-20 tokens{'\n'}to this address
+          ) : (
+            <>
+              {/* Asset Selector */}
+              <View style={s.card}>
+                <Text style={{ color:C.dim, fontSize:12, marginBottom:10 }}>Asset wählen</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection:"row", gap:8 }}>
+                    {ASSETS.map(a => (
+                      <TouchableOpacity key={a.symbol} onPress={() => setSelAsset(a)}
+                        style={[s.assetChip, { borderColor: selAsset.symbol===a.symbol ? a.color : C.dimmer,
+                                               backgroundColor: selAsset.symbol===a.symbol ? a.color+"22" : "transparent" }]}>
+                        <Text style={{ fontSize:16 }}>{a.icon}</Text>
+                        <Text style={{ color: selAsset.symbol===a.symbol ? a.color : C.dim,
+                                       fontWeight:"700", fontSize:13, marginLeft:6 }}>{a.symbol}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              <View style={s.card}>
+                <Text style={{ color:C.dim, fontSize:12, marginBottom:8 }}>Empfänger Adresse</Text>
+                <TextInput value={sendAddr} onChangeText={setSendAddr}
+                  placeholder="0x..." placeholderTextColor={C.dimmer}
+                  style={s.input} />
+
+                <Text style={{ color:C.dim, fontSize:12, marginTop:14, marginBottom:8 }}>
+                  Betrag ({selAsset.symbol}) · Verfügbar: {selAsset.balance.toLocaleString("en",{maximumFractionDigits:4})}
+                </Text>
+                <TextInput value={sendAmt} onChangeText={setSendAmt}
+                  placeholder="0.00" keyboardType="numeric" placeholderTextColor={C.dimmer}
+                  style={[s.input, { fontSize:24, fontWeight:"800" }]} />
+
+                {sendAmt && (
+                  <Text style={{ color:C.dim, fontSize:13, marginTop:8 }}>
+                    ≈ ${(parseFloat(sendAmt) * (prices[selAsset.symbol] || selAsset.price)).toFixed(2)} USD
+                    · Gas: ~0.002 ETH
+                  </Text>
+                )}
+
+                <TouchableOpacity onPress={handleSend} disabled={sending || !sendAmt || !sendAddr}
+                  style={[s.sendBtn, { backgroundColor: sendAmt && sendAddr && !sending ? C.cyan : C.dimmer }]}>
+                  <Text style={{ color:"#000", fontWeight:"900", fontSize:16 }}>
+                    {sending ? "⏳ Sende..." : `⬆️ ${selAsset.symbol} senden`}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
+      {/* Receive Tab */}
+      {tab === "receive" && (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>⬇️ Empfangen</Text>
+          <View style={[s.card, { alignItems:"center" }]}>
+            {/* QR Placeholder */}
+            <View style={{ width:180, height:180, borderRadius:16, marginBottom:20,
+                           backgroundColor:"#fff", alignItems:"center", justifyContent:"center",
+                           borderWidth:4, borderColor:C.cyan }}>
+              <Text style={{ fontSize:11, color:"#000", textAlign:"center", fontWeight:"700", padding:8 }}>
+                [QR Code]{"\n"}0xGri...Saks{"\n"}QEMMA Wallet
+              </Text>
+            </View>
+            <Text style={{ color:C.cyan, fontWeight:"800", fontSize:15, marginBottom:6 }}>Deine Adresse</Text>
+            <Text style={{ color:C.dim, fontSize:12, fontFamily:"monospace", textAlign:"center",
+                           backgroundColor:"rgba(0,255,255,0.06)", padding:12, borderRadius:10,
+                           borderWidth:1, borderColor:C.border, lineHeight:20 }}>
+              0xGri1212Saks1985{"\n"}QuantumEmmaWallet
             </Text>
-          </LinearGradient>
-        )}
-
-        {/* HISTORY */}
-        {tab === 'history' && (
-          <View style={[s.section, { marginBottom: 32 }]}>
-            <Text style={s.sectionTitle}>📋 Transaction History</Text>
-            {TX_HISTORY.map((tx, i) => (
-              <LinearGradient key={i} colors={[tx.color + '10', tx.color + '04']} style={s.txCard}>
-                <Text style={s.txIcon}>{tx.icon}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.txType}>{tx.type}</Text>
-                  <Text style={s.txDesc}>{tx.desc}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[s.txAmt, { color: tx.color }]}>{tx.amt}</Text>
-                  <Text style={s.txTime}>{tx.usd} · {tx.time}</Text>
-                </View>
-              </LinearGradient>
-            ))}
+            <TouchableOpacity style={{ marginTop:16, padding:12, borderRadius:10,
+                                       borderWidth:1, borderColor:C.cyan + "44" }}>
+              <Text style={{ color:C.cyan, fontWeight:"700", fontSize:14 }}>📋 Adresse kopieren</Text>
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
+      )}
 
-      </ScrollView>
-    </SafeAreaView>
+      {/* History Tab */}
+      {tab === "history" && (
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>📋 Transaktionsverlauf</Text>
+          {TX_HISTORY.map(tx => (
+            <View key={tx.id} style={s.txRow}>
+              <View style={[s.txIcon, { borderColor:(TX_COLOR[tx.type]||C.dim)+"44",
+                                         backgroundColor:(TX_COLOR[tx.type]||C.dim)+"11" }]}>
+                <Text style={{ fontSize:20 }}>{TX_ICON[tx.type]}</Text>
+              </View>
+              <View style={{ flex:1, marginLeft:12 }}>
+                <Text style={{ color:"#e0f0ff", fontWeight:"700", fontSize:14, textTransform:"capitalize" }}>
+                  {tx.type === "receive" ? "Empfangen"
+                   : tx.type === "send"   ? "Gesendet"
+                   : tx.type === "swap"   ? `Getauscht (${tx.pair})`
+                   : tx.type === "stake"  ? `Gestakt → ${tx.pool}`
+                   : "Staking Reward"}
+                </Text>
+                <Text style={{ color:C.dim, fontSize:11, marginTop:2 }}>{tx.ts}</Text>
+              </View>
+              <View style={{ alignItems:"flex-end" }}>
+                <Text style={{ color:TX_COLOR[tx.type]||C.dim, fontWeight:"800", fontSize:15 }}>
+                  {tx.type==="send" ? "-" : "+"}{tx.amount} {tx.asset}
+                </Text>
+                <Text style={{ color:C.green, fontSize:10, marginTop:2 }}>✅ {tx.status}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      <View style={{ alignItems:"center", marginBottom:32, marginTop:12 }}>
+        <Text style={{ color:C.dimmer, fontSize:10 }}>
+          © 2026 Grigori Saks — Quantum Emma Wallet · Patent Pending
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  safe:          { flex:1, backgroundColor:Q.void },
-  scroll:        { flex:1 },
-  header:        { padding:20, alignItems:'center', borderRadius:16, margin:12,
-                   borderWidth:1, borderColor:Q.plasma+'33' },
-  headerTitle:   { fontSize:13, fontWeight:'800', color:Q.quark, marginBottom:8 },
-  totalVal:      { fontSize:32, fontWeight:'900', color:Q.bright },
-  pnl:           { fontSize:14, fontWeight:'700', marginBottom:12 },
-  connectedBadge:{ flexDirection:'row', alignItems:'center', gap:6,
-                   backgroundColor:Q.lepton+'18', borderRadius:20, paddingHorizontal:12, paddingVertical:6 },
-  connectedDot:  { width:6, height:6, borderRadius:3, backgroundColor:Q.lepton },
-  connectedText: { color:Q.lepton, fontSize:11, fontFamily:'monospace' },
-  connectBtn:    { backgroundColor:Q.plasma, borderRadius:12, paddingHorizontal:20, paddingVertical:10 },
-  connectText:   { color:Q.bright, fontWeight:'800', fontSize:13 },
-  tabRow:        { flexDirection:'row', marginHorizontal:12, marginBottom:10,
-                   backgroundColor:Q.bg1, borderRadius:10, padding:4,
-                   borderWidth:1, borderColor:Q.plasma+'22' },
-  tabBtn:        { flex:1, padding:7, borderRadius:8, alignItems:'center' },
-  tabActive:     { backgroundColor:Q.plasma },
-  tabText:       { fontSize:10, fontWeight:'700', color:Q.dim },
-  tabTextActive: { color:Q.bright },
-  section:       { paddingHorizontal:12 },
-  sectionTitle:  { fontSize:13, fontWeight:'800', color:Q.quark, marginBottom:10 },
-  assetCard:     { flexDirection:'row', alignItems:'center', borderRadius:12, padding:14,
-                   marginBottom:8, borderWidth:1, borderColor:Q.plasma+'22', gap:10 },
-  assetDot:      { width:36, height:36, borderRadius:18 },
-  assetSym:      { fontSize:14, fontWeight:'800', color:Q.bright },
-  assetName:     { fontSize:10, color:Q.dim },
-  assetVal:      { fontSize:14, fontWeight:'800', color:Q.bright },
-  assetChg:      { fontSize:10, marginTop:2 },
-  card:          { marginHorizontal:12, borderRadius:16, padding:16,
-                   borderWidth:1, borderColor:Q.plasma+'22' },
-  cardTitle:     { fontSize:13, fontWeight:'800', color:Q.quark, marginBottom:12 },
-  input:         { backgroundColor:Q.bg2, borderWidth:1, borderColor:Q.plasma+'44',
-                   borderRadius:10, padding:12, color:Q.bright, fontSize:13,
-                   marginBottom:10 },
-  tokenRow:      { flexDirection:'row', gap:8, marginBottom:12 },
-  tokenBtn:      { flex:1, padding:8, borderRadius:8, borderWidth:1,
-                   borderColor:Q.quark+'44', backgroundColor:Q.plasma+'15', alignItems:'center' },
-  txInfo:        { backgroundColor:Q.bg2, borderRadius:8, padding:10, marginBottom:12 },
-  txInfoText:    { fontSize:10, color:Q.dim },
-  actionBtn:     { padding:14, borderRadius:12, alignItems:'center' },
-  actionBtnText: { fontSize:14, fontWeight:'900', color:Q.bright },
-  qrBox:         { width:120, height:120, backgroundColor:Q.bg2, borderRadius:12,
-                   borderWidth:1, borderColor:Q.plasma+'44', alignItems:'center',
-                   justifyContent:'center', marginVertical:16 },
-  addrBox:       { backgroundColor:Q.bg2, borderRadius:10, padding:12,
-                   borderWidth:1, borderColor:Q.plasma+'44', width:'100%' },
-  addrText:      { color:Q.mid, fontSize:12, fontFamily:'monospace', textAlign:'center' },
-  txCard:        { flexDirection:'row', alignItems:'center', borderRadius:12, padding:12,
-                   marginBottom:8, borderWidth:1, borderColor:Q.plasma+'22', gap:10 },
-  txIcon:        { fontSize:22, width:32, textAlign:'center' },
-  txType:        { fontSize:12, fontWeight:'700', color:Q.bright },
-  txDesc:        { fontSize:10, color:Q.dim, marginTop:2 },
-  txAmt:         { fontSize:12, fontWeight:'700' },
-  txTime:        { fontSize:10, color:Q.dim, marginTop:2 },
+  header:      { flexDirection:"row", justifyContent:"space-between", alignItems:"center",
+                 padding:16, paddingTop:52, borderBottomWidth:1, borderColor:C.border },
+  title:       { color:C.cyan, fontSize:24, fontWeight:"900" },
+  scanBtn:     { padding:8, borderRadius:10, borderWidth:1, borderColor:C.border },
+  balanceCard: { padding:24, borderBottomWidth:1, borderColor:C.border, alignItems:"center" },
+  balLabel:    { color:C.dim, fontSize:13, marginBottom:8 },
+  balTotal:    { color:C.cyan, fontSize:48, fontWeight:"900",
+                 textShadowColor:"rgba(0,255,255,0.4)", textShadowOffset:{width:0,height:0}, textShadowRadius:20 },
+  actionRow:   { flexDirection:"row", gap:16, marginTop:24 },
+  actionBtn:   { alignItems:"center" },
+  actionIcon:  { width:54, height:54, borderRadius:27, borderWidth:2,
+                 alignItems:"center", justifyContent:"center" },
+  section:     { padding:16 },
+  sectionTitle:{ color:C.cyan, fontSize:18, fontWeight:"800", marginBottom:14 },
+  card:        { backgroundColor:C.card, borderRadius:14, padding:16,
+                 borderWidth:1, borderColor:C.border, marginBottom:12 },
+  assetRow:    { flexDirection:"row", alignItems:"center", padding:14,
+                 backgroundColor:C.card, borderRadius:12, borderWidth:1,
+                 borderColor:C.border, marginBottom:8 },
+  assetIcon:   { width:46, height:46, borderRadius:23, borderWidth:2,
+                 alignItems:"center", justifyContent:"center",
+                 backgroundColor:"rgba(0,255,255,0.06)" },
+  assetChip:   { flexDirection:"row", alignItems:"center", paddingHorizontal:14,
+                 paddingVertical:8, borderRadius:20, borderWidth:2 },
+  input:       { backgroundColor:"rgba(255,255,255,0.04)", borderWidth:1,
+                 borderColor:C.border, borderRadius:10, color:"#e0f0ff",
+                 padding:12, fontSize:16, fontWeight:"700" },
+  sendBtn:     { marginTop:18, padding:16, borderRadius:12, alignItems:"center" },
+  txRow:       { flexDirection:"row", alignItems:"center", padding:14,
+                 backgroundColor:C.card, borderRadius:12, borderWidth:1,
+                 borderColor:C.border, marginBottom:8 },
+  txIcon:      { width:44, height:44, borderRadius:22, borderWidth:2,
+                 alignItems:"center", justifyContent:"center" },
 });
