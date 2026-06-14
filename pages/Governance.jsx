@@ -1,260 +1,305 @@
 // ============================================================
-//  QUANTUM EMMA — DAO Governance v5.0 MEGA UPGRADE
-//  Proposals · Live Voting · Treasury · DAO Stats
-//  4D/5D Holographic · © 2026 Grigori Saks — All Rights Reserved
+//  QUANTUM EMMA — Governance DAO v2
+//  Live Proposals · On-Chain Voting · Treasury · Quorum
+//  (c) 2026 Grigori Saks — All Rights Reserved — Patent Pending
 // ============================================================
+
 import React, { useState, useEffect } from "react";
 
-const Q = {
-  void:"#000008", deep:"#02000f", bg0:"#030012", bg1:"#06001e", bg2:"#0a002e",
-  plasma:"#7c3aed", neutrino:"#8b5cf6", quark:"#a78bfa", gluon:"#06b6d4",
-  photon:"#00ffff", higgs:"#fbbf24", boson:"#f472b6", lepton:"#4ade80",
-  muon:"#fb923c", tauon:"#f87171", bright:"#f0f4ff", mid:"#94a3b8", dim:"#475569",
-};
-function useTick(ms=200){const[t,setT]=useState(0);useEffect(()=>{const id=setInterval(()=>setT(n=>n+1),ms);return()=>clearInterval(id);},[ms]);return t;}
-
 const PROPOSALS = [
-  {id:"QEP-012",title:"Increase Staking APY to 75% for Quantum Tier",
-   status:"active",   forV:68,againstV:18,abstain:14,ends:"2d 4h",quorum:82,color:Q.lepton,
-   desc:"Proposal to boost Quantum Tier staking rewards to attract long-term holders and reduce circulating supply.",author:"ALPHA-7"},
-  {id:"QEP-011",title:"List QEMMA on Gate.io Exchange",
-   status:"active",   forV:91,againstV:6, abstain:3, ends:"5d 1h",quorum:94,color:Q.gluon,
-   desc:"Strategic listing on Gate.io to expand market access across Asian markets and increase liquidity depth.",author:"Community"},
-  {id:"QEP-010",title:"Deploy HQMLL v8 on Mainnet",
-   status:"passed",   forV:87,againstV:8, abstain:5, ends:"Ended",quorum:89,color:Q.plasma,
-   desc:"Upgrade MetaMemory recursive engine to v8 with 3x performance improvement.",author:"EPSILON-9"},
-  {id:"QEP-009",title:"Allocate $200K Treasury for Marketing",
-   status:"passed",   forV:73,againstV:20,abstain:7, ends:"Ended",quorum:78,color:Q.higgs,
-   desc:"Fund a 6-month marketing campaign targeting DeFi communities on Twitter and YouTube.",author:"MU-10"},
-  {id:"QEP-008",title:"Reduce Pool Fee from 1.5% to 1.0%",
-   status:"failed",   forV:41,againstV:52,abstain:7, ends:"Ended",quorum:48,color:Q.tauon,
-   desc:"Reduce mining pool fees to attract more miners and increase network hash rate.",author:"Community"},
+  {
+    id: 1, title: "QIP-001: QEMMA Token Burn — 5% Supply Reduction",
+    status: "active", category: "Tokenomics",
+    votes: { for: 8420000, against: 1240000, abstain: 340000 },
+    quorum: 10000000, deadline: "2026-06-20", proposer: "0xGri...saks",
+    description: "Burn 5M QEMMA tokens from the reserve to increase scarcity and support the token price.",
+  },
+  {
+    id: 2, title: "QIP-002: Uniswap V3 Liquidity Pool — $500K Initial",
+    status: "active", category: "DeFi",
+    votes: { for: 6800000, against: 580000, abstain: 120000 },
+    quorum: 10000000, deadline: "2026-06-22", proposer: "0xAlph...quant",
+    description: "Allocate $500K from treasury to seed the QEMMA/ETH Uniswap V3 liquidity pool.",
+  },
+  {
+    id: 3, title: "QIP-003: Staking APY Increase Tier 5 → 75%",
+    status: "passed", category: "Staking",
+    votes: { for: 12400000, against: 820000, abstain: 200000 },
+    quorum: 10000000, deadline: "2026-06-10", proposer: "0xMeta...TR2",
+    description: "Increase maximum staking APY from 60% to 75% for Tier 5 (500K+ QEMMA) holders.",
+  },
+  {
+    id: 4, title: "QIP-004: Gate.io Listing Application Budget",
+    status: "pending", category: "Exchange",
+    votes: { for: 0, against: 0, abstain: 0 },
+    quorum: 10000000, deadline: "2026-06-28", proposer: "0xGri...saks",
+    description: "Allocate 200K USDC from treasury for Gate.io CEX listing fees and market making.",
+  },
 ];
 
-export default function Governance() {
-  const tick = useTick(200);
-  const [tab, setTab] = useState("proposals");
-  const [votes, setVotes] = useState({});
-  const [newProposal, setNewProposal] = useState(false);
-  const [propTitle, setPropTitle] = useState("");
-  const [propDesc, setPropDesc]   = useState("");
-  const pulse = 0.5+Math.sin(tick*0.05)*0.3;
+const STATUS_CONFIG = {
+  active:  { color: "#00ffff", bg: "rgba(0,255,255,0.1)",  label: "🔵 Aktiv" },
+  passed:  { color: "#00ff80", bg: "rgba(0,255,128,0.1)",  label: "✅ Angenommen" },
+  failed:  { color: "#ff4444", bg: "rgba(255,68,68,0.1)",  label: "❌ Abgelehnt" },
+  pending: { color: "#ffaa00", bg: "rgba(255,170,0,0.1)",  label: "⏳ Ausstehend" },
+};
 
-  const vote = (id, side) => {
-    setVotes(v=>({...v,[id]:side}));
+const TREASURY = [
+  { asset: "USDC",   amount: 2400000, icon: "💵", color: "#00ff80" },
+  { asset: "ETH",    amount: 48.4,    icon: "⟠",  color: "#8080ff", usdVal: 184888 },
+  { asset: "QEMMA",  amount: 15000000,icon: "⚛️", color: "#00ffff", usdVal: 9450000 },
+  { asset: "WBTC",   amount: 0.44,    icon: "₿",  color: "#ffaa00", usdVal: 29656 },
+];
+
+export default function GovernanceV2() {
+  const [selected,   setSelected]   = useState(null);
+  const [userVotes,  setUserVotes]   = useState({});
+  const [proposals,  setProposals]   = useState(PROPOSALS);
+  const [tab,        setTab]         = useState("proposals"); // proposals | treasury | history
+  const [filter,     setFilter]      = useState("all");
+  const [voting,     setVoting]      = useState(null);
+
+  const totalTreasury = 2400000 + 184888 + 9450000 + 29656;
+
+  const handleVote = async (proposalId, choice) => {
+    if (userVotes[proposalId]) return;
+    setVoting(proposalId);
+    await new Promise(r => setTimeout(r, 1200));
+    const power = 15000; // user's voting power in QEMMA
+    setProposals(prev => prev.map(p => {
+      if (p.id !== proposalId) return p;
+      return { ...p, votes: { ...p.votes, [choice]: p.votes[choice] + power } };
+    }));
+    setUserVotes(prev => ({ ...prev, [proposalId]: choice }));
+    setVoting(null);
   };
 
-  const treasury = {total:4200000,allocated:1840000,available:2360000};
-  const treasuryPct = (treasury.allocated/treasury.total*100).toFixed(1);
+  const filtered = filter === "all"
+    ? proposals
+    : proposals.filter(p => p.status === filter);
 
   return (
-    <div style={{minHeight:"100vh",background:Q.void,color:Q.bright,fontFamily:"'Inter',sans-serif",paddingBottom:40}}>
+    <div style={{ minHeight: "100vh", background: "#000d1a", color: "#e0f0ff",
+                  fontFamily: "'Rajdhani',sans-serif", padding: 24 }}>
 
-      {/* HEADER */}
-      <div style={{background:Q.deep,borderBottom:`1px solid ${Q.plasma}33`,padding:"14px 24px",
-        display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-        <div>
-          <div style={{fontWeight:900,fontSize:18,color:Q.quark}}>🏛 DAO Governance v5.0</div>
-          <div style={{color:Q.dim,fontSize:12}}>On-Chain Voting · Proposals · Treasury · Community Power</div>
-        </div>
-        <div style={{display:"flex",gap:10}}>
-          {[{l:"Proposals",v:"12",c:Q.plasma},{l:"Voters",v:"3,240",c:Q.gluon},{l:"Quorum",c:Q.lepton,v:"82%"}].map((s,i)=>(
-            <div key={i} style={{textAlign:"center",padding:"6px 14px",borderRadius:8,
-              background:`${s.c}15`,border:`1px solid ${s.c}33`}}>
-              <div style={{fontSize:15,fontWeight:900,color:s.c}}>{s.v}</div>
-              <div style={{fontSize:9,color:Q.dim}}>{s.l}</div>
-            </div>
-          ))}
-        </div>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ margin: 0, color: "#00ffff", fontSize: 28, fontWeight: 900 }}>
+          🗳 Governance DAO v2
+        </h1>
+        <p style={{ margin: "4px 0 0", color: "#556677", fontSize: 13 }}>
+          On-Chain Voting · Treasury · QEMMA Holders entscheiden
+        </p>
       </div>
 
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 16px"}}>
-
-        {/* TREASURY BAR */}
-        <div style={{background:Q.bg1,borderRadius:14,padding:"16px 20px",border:`1px solid ${Q.higgs}33`,marginBottom:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <span style={{color:Q.higgs,fontWeight:700}}>🏦 DAO Treasury</span>
-            <div style={{display:"flex",gap:16,fontSize:12}}>
-              <span style={{color:Q.dim}}>Total: <span style={{color:Q.bright,fontWeight:700}}>${(treasury.total/1e6).toFixed(1)}M</span></span>
-              <span style={{color:Q.dim}}>Allocated: <span style={{color:Q.muon,fontWeight:700}}>${(treasury.allocated/1e6).toFixed(2)}M</span></span>
-              <span style={{color:Q.dim}}>Available: <span style={{color:Q.lepton,fontWeight:700}}>${(treasury.available/1e6).toFixed(2)}M</span></span>
-            </div>
+      {/* Stats Row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))",
+                    gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Treasury",      value: `$${(totalTreasury/1e6).toFixed(1)}M`, color: "#00ff80" },
+          { label: "Proposals",     value: proposals.length,                       color: "#00ffff" },
+          { label: "Aktiv",         value: proposals.filter(p => p.status==="active").length, color: "#00ffff" },
+          { label: "Quorum",        value: "10M QEMMA",                            color: "#ffaa00" },
+          { label: "Deine Macht",   value: "15K QEMMA",                            color: "#8080ff" },
+          { label: "Participation", value: "67.4%",                                color: "#00ff80" },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: "rgba(0,20,40,0.85)", border: "1px solid rgba(0,255,255,0.12)",
+                                    borderRadius: 12, padding: 14, textAlign: "center" }}>
+            <div style={{ color: "#556677", fontSize: 11 }}>{label}</div>
+            <div style={{ color, fontSize: 20, fontWeight: 800, marginTop: 4 }}>{value}</div>
           </div>
-          <div style={{height:10,background:`${Q.higgs}15`,borderRadius:5,overflow:"hidden",border:`1px solid ${Q.higgs}22`}}>
-            <div style={{height:"100%",width:`${treasuryPct}%`,
-              background:`linear-gradient(90deg,${Q.muon},${Q.higgs})`,borderRadius:5,
-              boxShadow:`0 0 10px ${Q.higgs}66`,transition:"width 1s"}}/>
-          </div>
-          <div style={{fontSize:10,color:Q.dim,marginTop:4}}>{treasuryPct}% allocated</div>
-        </div>
+        ))}
+      </div>
 
-        {/* TABS */}
-        <div style={{display:"flex",gap:4,background:Q.bg1,borderRadius:10,padding:4,
-          border:`1px solid ${Q.plasma}22`,marginBottom:16,width:"fit-content"}}>
-          {[["proposals","📋 Proposals"],["create","✍️ Create Proposal"],["stats","📊 DAO Stats"]].map(([t,l])=>(
-            <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"7px 18px",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
-              background:tab===t?`linear-gradient(135deg,${Q.plasma},${Q.gluon})`:"transparent",
-              color:tab===t?Q.bright:Q.dim}}>
-              {l}
-            </button>
-          ))}
-        </div>
-
-        {/* PROPOSALS */}
-        {tab==="proposals" && (
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {PROPOSALS.map(p=>{
-              const voted = votes[p.id];
-              const c = p.status==="active"?p.color:p.status==="passed"?Q.lepton:Q.tauon;
-              const pulse2 = 0.5+Math.sin(tick*0.05)*0.3;
-              return (
-                <div key={p.id} style={{background:Q.bg1,borderRadius:14,padding:"20px",
-                  border:`1px solid ${c}${p.status==="active"?Math.round((0.15+pulse2*0.1)*255).toString(16).padStart(2,"0"):"22"}`,
-                  boxShadow:p.status==="active"?`0 0 ${8+pulse2*6}px ${c}0a`:"none"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
-                        <span style={{fontSize:11,color:Q.dim,fontFamily:"monospace"}}>{p.id}</span>
-                        <span style={{padding:"2px 8px",borderRadius:20,fontSize:10,fontWeight:700,
-                          background:p.status==="active"?`${c}20`:p.status==="passed"?`${Q.lepton}20`:`${Q.tauon}20`,
-                          color:p.status==="active"?c:p.status==="passed"?Q.lepton:Q.tauon,
-                          border:`1px solid ${p.status==="active"?c:p.status==="passed"?Q.lepton:Q.tauon}44`}}>
-                          {p.status==="active"?"🟢 Active":p.status==="passed"?"✅ Passed":"❌ Failed"}
-                        </span>
-                      </div>
-                      <div style={{fontWeight:800,fontSize:15,color:Q.bright,marginBottom:6}}>{p.title}</div>
-                      <div style={{fontSize:12,color:Q.dim,lineHeight:1.5}}>{p.desc}</div>
-                    </div>
-                    <div style={{textAlign:"right",marginLeft:16,flexShrink:0}}>
-                      <div style={{fontSize:11,color:Q.dim}}>Ends: {p.ends}</div>
-                      <div style={{fontSize:11,color:Q.mid}}>By: {p.author}</div>
-                    </div>
-                  </div>
-
-                  {/* Vote bars */}
-                  <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
-                    {[
-                      {label:"For",     val:p.forV,     color:Q.lepton},
-                      {label:"Against", val:p.againstV, color:Q.tauon},
-                      {label:"Abstain", val:p.abstain,  color:Q.dim},
-                    ].map(v=>(
-                      <div key={v.label} style={{display:"flex",alignItems:"center",gap:8}}>
-                        <div style={{width:50,fontSize:11,color:v.color,fontWeight:700}}>{v.label}</div>
-                        <div style={{flex:1,height:6,background:`${v.color}20`,borderRadius:3}}>
-                          <div style={{height:6,width:`${v.val}%`,background:v.color,borderRadius:3,
-                            boxShadow:`0 0 6px ${v.color}88`}}/>
-                        </div>
-                        <div style={{width:35,fontSize:11,color:v.color,textAlign:"right"}}>{v.val}%</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Quorum */}
-                  <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:12,fontSize:11}}>
-                    <span style={{color:Q.dim}}>Quorum:</span>
-                    <div style={{flex:1,height:4,background:`${Q.gluon}20`,borderRadius:2}}>
-                      <div style={{height:4,width:`${p.quorum}%`,background:Q.gluon,borderRadius:2}}/>
-                    </div>
-                    <span style={{color:Q.gluon,fontWeight:700}}>{p.quorum}%</span>
-                  </div>
-
-                  {/* Vote buttons */}
-                  {p.status==="active" && (
-                    <div style={{display:"flex",gap:8}}>
-                      {["For","Against","Abstain"].map((s,i)=>{
-                        const vc = s==="For"?Q.lepton:s==="Against"?Q.tauon:Q.dim;
-                        const isVoted = voted===s;
-                        return (
-                          <button key={s} onClick={()=>vote(p.id,s)} style={{
-                            flex:1,padding:"8px",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:12,
-                            border:`1px solid ${vc}${isVoted?"cc":"44"}`,
-                            background:isVoted?`${vc}30`:"transparent",
-                            color:isVoted?vc:Q.dim,
-                            boxShadow:isVoted?`0 0 10px ${vc}44`:"none"}}>
-                            {isVoted?"✓ Voted":"Vote"} {s}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* CREATE PROPOSAL */}
-        {tab==="create" && (
-          <div style={{background:Q.bg1,borderRadius:14,padding:"24px",border:`1px solid ${Q.plasma}33`,maxWidth:700}}>
-            <div style={{color:Q.quark,fontWeight:700,fontSize:15,marginBottom:20}}>✍️ Create New Proposal</div>
-            <div style={{display:"flex",flexDirection:"column",gap:14}}>
-              <div>
-                <div style={{fontSize:11,color:Q.dim,marginBottom:6}}>Proposal Title</div>
-                <input value={propTitle} onChange={e=>setPropTitle(e.target.value)}
-                  placeholder="e.g. Increase QEMMA Staking APY to 75%"
-                  style={{width:"100%",background:Q.bg2,border:`1px solid ${Q.plasma}44`,borderRadius:8,
-                    padding:"10px 12px",color:Q.bright,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-              </div>
-              <div>
-                <div style={{fontSize:11,color:Q.dim,marginBottom:6}}>Description</div>
-                <textarea value={propDesc} onChange={e=>setPropDesc(e.target.value)}
-                  placeholder="Describe your proposal in detail..."
-                  rows={5} style={{width:"100%",background:Q.bg2,border:`1px solid ${Q.plasma}44`,borderRadius:8,
-                    padding:"10px 12px",color:Q.bright,fontSize:13,outline:"none",resize:"vertical",
-                    fontFamily:"inherit",boxSizing:"border-box"}}/>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                <div>
-                  <div style={{fontSize:11,color:Q.dim,marginBottom:6}}>Voting Period</div>
-                  <select style={{width:"100%",background:Q.bg2,border:`1px solid ${Q.plasma}44`,borderRadius:8,
-                    padding:"10px 12px",color:Q.bright,fontSize:13,outline:"none"}}>
-                    {["3 days","5 days","7 days","14 days"].map(d=><option key={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <div style={{fontSize:11,color:Q.dim,marginBottom:6}}>Category</div>
-                  <select style={{width:"100%",background:Q.bg2,border:`1px solid ${Q.plasma}44`,borderRadius:8,
-                    padding:"10px 12px",color:Q.bright,fontSize:13,outline:"none"}}>
-                    {["Tokenomics","Exchange Listing","Protocol Upgrade","Treasury","Marketing","Other"].map(c=><option key={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div style={{padding:"12px",background:`${Q.higgs}10`,borderRadius:8,border:`1px solid ${Q.higgs}22`,fontSize:11,color:Q.dim}}>
-                ⚠️ Requirements: Hold min. 10,000 QEMMA · Stake min. 5,000 QEMMA · Proposal fee: 100 QEMMA
-              </div>
-              <button disabled={!propTitle||!propDesc} style={{
-                padding:"13px",borderRadius:12,border:"none",cursor:propTitle&&propDesc?"pointer":"not-allowed",
-                background:propTitle&&propDesc?`linear-gradient(135deg,${Q.plasma},${Q.gluon})`:`${Q.plasma}33`,
-                color:Q.bright,fontWeight:800,fontSize:14,
-                boxShadow:propTitle&&propDesc?`0 0 16px ${Q.plasma}55`:"none"}}>
-                🏛 Submit Proposal (100 QEMMA)
+      {/* Tab Bar */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {[["proposals","📋 Proposals"],["treasury","💰 Treasury"],["history","📜 History"]].map(([t, l]) => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: "8px 18px", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 13,
+                     background: tab === t ? "rgba(0,255,255,0.12)" : "rgba(255,255,255,0.04)",
+                     border: `1px solid ${tab === t ? "#00ffff" : "rgba(255,255,255,0.1)"}`,
+                     color: tab === t ? "#00ffff" : "#556677" }}>
+            {l}
+          </button>
+        ))}
+        {tab === "proposals" && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            {["all","active","passed","pending"].map(f => (
+              <button key={f} onClick={() => setFilter(f)}
+                style={{ padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11,
+                         background: filter === f ? "rgba(0,255,255,0.08)" : "transparent",
+                         border: `1px solid ${filter === f ? "#00ffff" : "rgba(255,255,255,0.08)"}`,
+                         color: filter === f ? "#00ffff" : "#556677", textTransform: "capitalize" }}>
+                {f}
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* DAO STATS */}
-        {tab==="stats" && (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-            {[
-              {label:"Total Proposals",val:"12",sub:"8 passed · 2 failed · 2 active",color:Q.plasma},
-              {label:"Total Voters",   val:"3,240",sub:"Unique wallets participated",color:Q.gluon},
-              {label:"Avg Quorum",     val:"81.4%",sub:"Across all proposals",color:Q.lepton},
-              {label:"Voting Power",   val:"100M",sub:"Total QEMMA supply",color:Q.higgs},
-              {label:"Treasury Size",  val:"$4.2M",sub:"Multi-sig secured",color:Q.boson},
-              {label:"Pass Rate",      val:"80%",sub:"8 of 10 completed proposals",color:Q.muon},
-            ].map((s,i)=>(
-              <div key={i} style={{background:Q.bg1,borderRadius:14,padding:"20px",
-                border:`1px solid ${s.color}${Math.round((0.1+pulse*0.1)*255).toString(16).padStart(2,"0")}`,
-                boxShadow:`0 0 ${8+pulse*6}px ${s.color}0a`}}>
-                <div style={{fontSize:11,color:Q.dim,marginBottom:6}}>{s.label}</div>
-                <div style={{fontSize:26,fontWeight:900,color:s.color,marginBottom:4}}>{s.val}</div>
-                <div style={{fontSize:11,color:Q.dim}}>{s.sub}</div>
-              </div>
             ))}
           </div>
         )}
+      </div>
+
+      {/* Proposals Tab */}
+      {tab === "proposals" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {filtered.map(p => {
+            const total    = p.votes.for + p.votes.against + p.votes.abstain;
+            const forPct   = total ? (p.votes.for / total * 100) : 0;
+            const agPct    = total ? (p.votes.against / total * 100) : 0;
+            const quorumPct= Math.min(100, (total / p.quorum * 100));
+            const sc       = STATUS_CONFIG[p.status];
+            const voted    = userVotes[p.id];
+            const isOpen   = p.status === "active";
+            const exp      = selected === p.id;
+
+            return (
+              <div key={p.id} style={{ background: "rgba(0,20,40,0.9)",
+                                       border: `1px solid ${exp ? "#00ffff44" : "rgba(0,255,255,0.1)"}`,
+                                       borderRadius: 16, padding: 20, cursor: "pointer",
+                                       transition: "border-color 0.3s" }}
+                onClick={() => setSelected(exp ? null : p.id)}>
+
+                {/* Title Row */}
+                <div style={{ display: "flex", justifyContent: "space-between",
+                              alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+                      <span style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.color}44`,
+                                     borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>
+                        {sc.label}
+                      </span>
+                      <span style={{ color: "#556677", fontSize: 11,
+                                     background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "2px 8px" }}>
+                        {p.category}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: "#e0f0ff" }}>{p.title}</div>
+                    <div style={{ color: "#556677", fontSize: 11, marginTop: 4 }}>
+                      QIP-00{p.id} · {p.proposer} · Deadline: {p.deadline}
+                    </div>
+                  </div>
+                  {voted && (
+                    <span style={{ background: "rgba(0,255,128,0.1)", border: "1px solid rgba(0,255,128,0.3)",
+                                   borderRadius: 20, padding: "4px 12px", fontSize: 12, color: "#00ff80",
+                                   fontWeight: 700, whiteSpace: "nowrap" }}>
+                      ✅ Abgestimmt: {voted === "for" ? "Dafür" : voted === "against" ? "Dagegen" : "Enthaltung"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Vote Bars */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12,
+                                color: "#556677", marginBottom: 4 }}>
+                    <span>Dafür: <b style={{ color: "#00ff80" }}>{(p.votes.for/1e6).toFixed(2)}M</b></span>
+                    <span>Dagegen: <b style={{ color: "#ff4444" }}>{(p.votes.against/1e6).toFixed(2)}M</b></span>
+                    <span>Gesamt: <b style={{ color: "#8899aa" }}>{(total/1e6).toFixed(2)}M</b></span>
+                  </div>
+                  <div style={{ display: "flex", height: 8, borderRadius: 6, overflow: "hidden",
+                                background: "rgba(255,255,255,0.06)" }}>
+                    <div style={{ width: `${forPct}%`, background: "#00ff80", transition: "width 0.6s" }} />
+                    <div style={{ width: `${agPct}%`, background: "#ff4444", transition: "width 0.6s" }} />
+                  </div>
+                </div>
+
+                {/* Quorum Bar */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                  <span style={{ color: "#556677", fontSize: 11, whiteSpace: "nowrap" }}>
+                    Quorum {quorumPct.toFixed(0)}%
+                  </span>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 4, height: 4 }}>
+                    <div style={{ width: `${quorumPct}%`, height: "100%",
+                                  background: quorumPct >= 100 ? "#00ff80" : "#ffaa00",
+                                  borderRadius: 4, transition: "width 0.6s" }} />
+                  </div>
+                  <span style={{ color: quorumPct >= 100 ? "#00ff80" : "#ffaa00", fontSize: 11,
+                                 fontWeight: 700, whiteSpace: "nowrap" }}>
+                    {quorumPct >= 100 ? "✅ Erreicht" : "⏳ Ausstehend"}
+                  </span>
+                </div>
+
+                {/* Expanded: Description + Voting */}
+                {exp && (
+                  <div onClick={e => e.stopPropagation()}>
+                    <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 10, padding: 14, marginBottom: 14,
+                                  color: "#8899aa", fontSize: 13, lineHeight: 1.6 }}>
+                      {p.description}
+                    </div>
+                    {isOpen && !voted && (
+                      <div style={{ display: "flex", gap: 10 }}>
+                        {[
+                          { choice: "for",     label: "✅ Dafür",     color: "#00ff80" },
+                          { choice: "against",  label: "❌ Dagegen",   color: "#ff4444" },
+                          { choice: "abstain",  label: "⬜ Enthaltung",color: "#8899aa" },
+                        ].map(({ choice, label, color }) => (
+                          <button key={choice}
+                            onClick={() => handleVote(p.id, choice)}
+                            disabled={voting === p.id}
+                            style={{ flex: 1, padding: "10px 0", borderRadius: 10, cursor: "pointer",
+                                     fontWeight: 700, fontSize: 14, border: `2px solid ${color}44`,
+                                     background: `${color}11`, color,
+                                     opacity: voting === p.id ? 0.6 : 1 }}>
+                            {voting === p.id ? "⏳..." : label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!isOpen && (
+                      <div style={{ textAlign: "center", color: "#556677", fontSize: 13 }}>
+                        Abstimmung abgeschlossen · {sc.label}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Treasury Tab */}
+      {tab === "treasury" && (
+        <div style={{ background: "rgba(0,20,40,0.9)", border: "1px solid rgba(0,255,255,0.12)",
+                      borderRadius: 16, padding: 20 }}>
+          <h3 style={{ margin: "0 0 20px", color: "#00ffff" }}>
+            💰 Treasury — ${(totalTreasury/1e6).toFixed(2)}M gesamt
+          </h3>
+          {TREASURY.map(t => {
+            const usd = t.usdVal || t.amount;
+            return (
+              <div key={t.asset} style={{ display: "flex", justifyContent: "space-between",
+                                          alignItems: "center", padding: "14px 0",
+                                          borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 24 }}>{t.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, color: t.color }}>{t.asset}</div>
+                    <div style={{ color: "#556677", fontSize: 12 }}>
+                      {t.amount.toLocaleString("en", { maximumFractionDigits: 4 })} {t.asset}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: "#00ffff", fontWeight: 700, fontSize: 18 }}>
+                    ${usd.toLocaleString("en", { maximumFractionDigits: 0 })}
+                  </div>
+                  <div style={{ color: "#556677", fontSize: 11 }}>
+                    {((usd / totalTreasury) * 100).toFixed(1)}% des Treasury
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === "history" && (
+        <div style={{ background: "rgba(0,20,40,0.9)", border: "1px solid rgba(0,255,255,0.12)",
+                      borderRadius: 16, padding: 20, color: "#556677", textAlign: "center", fontSize: 14 }}>
+          📜 Governance-History wird nach Sepolia-Deployment aus On-Chain-Events geladen.
+        </div>
+      )}
+
+      <div style={{ textAlign: "center", marginTop: 32, color: "#334455", fontSize: 11 }}>
+        © 2026 Grigori Saks — Quantum Emma DAO · On-Chain Governance · Patent Pending
       </div>
     </div>
   );
