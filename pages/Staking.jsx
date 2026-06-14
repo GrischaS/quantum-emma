@@ -1,314 +1,234 @@
 // ============================================================
-//  QUANTUM EMMA — Staking v5.0 MEGA UPGRADE
-//  5 Tiers · 60% APY · Live Calculator · Auto-Compound
-//  4D/5D Holographic · © 2026 Grigori Saks — All Rights Reserved
+//  QUANTUM EMMA — Staking Dashboard v2
+//  5 Tiers · Live APY · Compound Calculator · Reward Claim
+//  (c) 2026 Grigori Saks — All Rights Reserved — Patent Pending
 // ============================================================
+
 import React, { useState, useEffect } from "react";
 
-const Q = {
-  void:"#000008", deep:"#02000f", bg0:"#030012", bg1:"#06001e", bg2:"#0a002e",
-  plasma:"#7c3aed", neutrino:"#8b5cf6", quark:"#a78bfa", gluon:"#06b6d4",
-  photon:"#00ffff", higgs:"#fbbf24", boson:"#f472b6", lepton:"#4ade80",
-  muon:"#fb923c", tauon:"#f87171", bright:"#f0f4ff", mid:"#94a3b8", dim:"#475569",
-};
-function useTick(ms=150){const[t,setT]=useState(0);useEffect(()=>{const id=setInterval(()=>setT(n=>n+1),ms);return()=>clearInterval(id);},[ms]);return t;}
-
 const TIERS = [
-  {id:0,name:"FLEXIBLE",  icon:"🔓",apy:12,lock:0,     color:Q.mid,    min:100,   badge:"No Lock"},
-  {id:1,name:"BRONZE",    icon:"🥉",apy:18,lock:30,    color:Q.muon,   min:500,   badge:"30 Days"},
-  {id:2,name:"SILVER",    icon:"🥈",apy:24,lock:90,    color:Q.mid,    min:1000,  badge:"90 Days"},
-  {id:3,name:"GOLD",      icon:"🥇",apy:36,lock:180,   color:Q.higgs,  min:5000,  badge:"180 Days"},
-  {id:4,name:"QUANTUM",   icon:"⚛️",apy:60,lock:365,   color:Q.plasma, min:10000, badge:"365 Days"},
+  { id: 1, name: "Genesis",    min: 1000,   max: 9999,   apy: 25, color: "#00aaff", icon: "🌱" },
+  { id: 2, name: "Quantum",   min: 10000,  max: 49999,  apy: 35, color: "#0066ff", icon: "⚡" },
+  { id: 3, name: "Nexus",     min: 50000,  max: 99999,  apy: 45, color: "#8800ff", icon: "💎" },
+  { id: 4, name: "Ascension", min: 100000, max: 499999, apy: 55, color: "#ff00ff", icon: "🚀" },
+  { id: 5, name: "Apex",      min: 500000, max: null,   apy: 75, color: "#ffd700", icon: "⚛️" },
 ];
 
-export default function Staking() {
-  const tick = useTick(150);
-  const [selectedTier, setSelectedTier] = useState(TIERS[4]);
-  const [stakeAmount, setStakeAmount] = useState("10000");
-  const [tab, setTab] = useState("stake");
-  const [staking, setStaking] = useState(false);
-  const [staked, setStaked] = useState(false);
-  const pulse = 0.5+Math.sin(tick*0.05)*0.3;
+const USER_STAKE = { amount: 15000, tier: 2, since: "2026-04-01", pendingReward: 87.4 };
 
-  const amount = parseFloat(stakeAmount)||0;
-  const price = 0.63;
-  const daily    = (amount * selectedTier.apy/100/365).toFixed(2);
-  const weekly   = (amount * selectedTier.apy/100/52).toFixed(2);
-  const monthly  = (amount * selectedTier.apy/100/12).toFixed(2);
-  const yearly   = (amount * selectedTier.apy/100).toFixed(2);
-  const totalEnd = (amount + parseFloat(yearly)).toFixed(2);
+export default function StakingV2() {
+  const [calcAmt,   setCalcAmt]   = useState("15000");
+  const [calcDays,  setCalcDays]  = useState("365");
+  const [claiming,  setClaiming]  = useState(false);
+  const [claimed,   setClaimed]   = useState(false);
+  const [reward,    setReward]    = useState(USER_STAKE.pendingReward);
+  const [stakeAmt,  setStakeAmt]  = useState("");
+  const [staking,   setStaking]   = useState(false);
+  const [totalStaked, setTotal]   = useState(48200000);
 
-  const handleStake = () => {
-    if (!amount) return;
-    setStaking(true);
-    setTimeout(()=>{ setStaking(false); setStaked(true); }, 2000);
+  // Reward counter — ticks up in realtime
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setReward(r => parseFloat((r + 0.000042).toFixed(6)));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const userTier    = TIERS.find(t => USER_STAKE.amount >= t.min && (t.max === null || USER_STAKE.amount <= t.max)) || TIERS[0];
+  const calcTier    = TIERS.slice().reverse().find(t => parseFloat(calcAmt) >= t.min) || TIERS[0];
+  const calcReward  = ((parseFloat(calcAmt) || 0) * (calcTier.apy / 100) * (parseFloat(calcDays) || 365) / 365);
+  const calcCompound= ((parseFloat(calcAmt) || 0) * Math.pow(1 + calcTier.apy / 100 / 365, parseFloat(calcDays) || 365)) - (parseFloat(calcAmt) || 0);
+  const stakeDays   = Math.floor((Date.now() - new Date(USER_STAKE.since)) / 86400000);
+
+  const handleClaim = async () => {
+    setClaiming(true);
+    await new Promise(r => setTimeout(r, 1800));
+    setClaiming(false); setClaimed(true);
+    setTimeout(() => setClaimed(false), 4000);
+    setReward(0.000042);
   };
 
-  const myPositions = [
-    {tier:"QUANTUM",   staked:25000,  earned:1240.5, lock:"365d", apy:60,  color:Q.plasma, days:142},
-    {tier:"GOLD",      staked:10000,  earned:312.8,  lock:"180d", apy:36,  color:Q.higgs,  days:67},
-    {tier:"SILVER",    staked:5000,   earned:98.2,   lock:"90d",  apy:24,  color:Q.mid,    days:23},
-  ];
+  const handleStake = async () => {
+    if (!stakeAmt) return;
+    setStaking(true);
+    await new Promise(r => setTimeout(r, 2000));
+    setStaking(false); setStakeAmt("");
+    setTotal(t => t + parseInt(stakeAmt));
+  };
 
   return (
-    <div style={{minHeight:"100vh",background:Q.void,color:Q.bright,fontFamily:"'Inter',sans-serif",paddingBottom:40}}>
+    <div style={{ minHeight:"100vh", background:"#000d1a", color:"#e0f0ff",
+                  fontFamily:"'Rajdhani',sans-serif", padding:24 }}>
 
-      {/* HEADER */}
-      <div style={{background:Q.deep,borderBottom:`1px solid ${Q.plasma}33`,padding:"14px 24px",
-        display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-        <div>
-          <div style={{fontWeight:900,fontSize:18,color:Q.quark}}>🔒 Staking Center v5.0</div>
-          <div style={{color:Q.dim,fontSize:12}}>5 Lock Tiers · Up to 60% APY · Auto-Compound · Smart Contract Secured</div>
-        </div>
-        <div style={{display:"flex",gap:10}}>
-          {[{l:"Total Staked",v:"$25.2M",c:Q.plasma},{l:"Avg APY",v:"48.2%",c:Q.lepton},{l:"Stakers",v:"4,820",c:Q.gluon}].map((s,i)=>(
-            <div key={i} style={{textAlign:"center",padding:"6px 14px",borderRadius:8,
-              background:`${s.c}15`,border:`1px solid ${s.c}33`}}>
-              <div style={{fontSize:15,fontWeight:900,color:s.c}}>{s.v}</div>
-              <div style={{fontSize:9,color:Q.dim}}>{s.l}</div>
+      {/* Header */}
+      <div style={{ marginBottom:24 }}>
+        <h1 style={{ margin:0, color:"#00ffff", fontSize:28, fontWeight:900 }}>🏦 Staking v2</h1>
+        <p style={{ margin:"4px 0 0", color:"#556677", fontSize:13 }}>
+          5 Tiers · Bis 75% APY · {(totalStaked/1e6).toFixed(1)}M QEMMA gestakt
+        </p>
+      </div>
+
+      {/* User Position */}
+      <div style={{ background:"rgba(0,20,40,0.9)", border:`2px solid ${userTier.color}44`,
+                    borderRadius:20, padding:24, marginBottom:20 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", flexWrap:"wrap", gap:16 }}>
+          <div>
+            <div style={{ color:"#556677", fontSize:13, marginBottom:6 }}>DEINE POSITION</div>
+            <div style={{ fontSize:40, fontWeight:900, color:userTier.color }}>
+              {USER_STAKE.amount.toLocaleString()} QEMMA
             </div>
-          ))}
+            <div style={{ display:"flex", gap:10, marginTop:8, flexWrap:"wrap" }}>
+              <span style={{ background:userTier.color+"22", border:`1px solid ${userTier.color}44`,
+                             borderRadius:20, padding:"3px 12px", color:userTier.color,
+                             fontSize:13, fontWeight:700 }}>
+                {userTier.icon} {userTier.name} Tier
+              </span>
+              <span style={{ color:"#556677", fontSize:13, marginTop:3 }}>
+                {stakeDays} Tage gestakt · seit {USER_STAKE.since}
+              </span>
+            </div>
+          </div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ color:"#556677", fontSize:12 }}>APY</div>
+            <div style={{ fontSize:48, fontWeight:900, color:"#00ff80",
+                          textShadow:"0 0 20px rgba(0,255,128,0.5)" }}>
+              {userTier.apy}%
+            </div>
+          </div>
+        </div>
+
+        {/* Pending Reward */}
+        <div style={{ marginTop:20, background:"rgba(0,255,128,0.06)", border:"1px solid rgba(0,255,128,0.2)",
+                      borderRadius:14, padding:16, display:"flex",
+                      justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12 }}>
+          <div>
+            <div style={{ color:"#556677", fontSize:12, marginBottom:4 }}>AUSSTEHENDE REWARDS</div>
+            <div style={{ fontSize:32, fontWeight:900, color:"#00ff80",
+                          fontVariantNumeric:"tabular-nums" }}>
+              {reward.toFixed(6)} QEMMA
+            </div>
+            <div style={{ color:"#334455", fontSize:12, marginTop:2 }}>
+              ≈ ${(reward * 0.63).toFixed(2)} USD
+            </div>
+          </div>
+          {claimed ? (
+            <div style={{ color:"#00ff80", fontWeight:800, fontSize:18 }}>✅ Claimed!</div>
+          ) : (
+            <button onClick={handleClaim} disabled={claiming}
+              style={{ padding:"12px 28px", borderRadius:12, fontWeight:800, fontSize:16, cursor:"pointer",
+                       border:"none", background: claiming ? "rgba(0,255,128,0.1)" : "#00ff80",
+                       color: claiming ? "#00ff80" : "#000" }}>
+              {claiming ? "⏳ Claiming..." : "💰 Claim Rewards"}
+            </button>
+          )}
         </div>
       </div>
 
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 16px"}}>
-
-        {/* TIER CARDS */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:20}}>
-          {TIERS.map(t=>{
-            const sel = selectedTier.id===t.id;
-            const p = 0.5+Math.sin(tick*0.07+t.id)*0.3;
-            return (
-              <div key={t.id} onClick={()=>setSelectedTier(t)} style={{
-                padding:"14px 12px",borderRadius:14,cursor:"pointer",textAlign:"center",
-                background:sel?`${t.color}25`:`${t.color}0a`,
-                border:`2px solid ${t.color}${sel?"cc":Math.round((0.1+p*0.1)*255).toString(16).padStart(2,"0")}`,
-                boxShadow:sel?`0 0 ${14+p*10}px ${t.color}55`:"none",transition:"all .2s"}}>
-                <div style={{fontSize:24,marginBottom:4}}>{t.icon}</div>
-                <div style={{fontWeight:800,fontSize:12,color:sel?t.color:Q.mid,marginBottom:2}}>{t.name}</div>
-                <div style={{fontSize:22,fontWeight:900,color:t.color,textShadow:sel?`0 0 ${8+p*6}px ${t.color}`:"none"}}>{t.apy}%</div>
-                <div style={{fontSize:9,color:Q.dim}}>APY</div>
-                <div style={{marginTop:6,padding:"2px 6px",borderRadius:20,fontSize:9,fontWeight:700,
-                  background:`${t.color}20`,color:t.color,display:"inline-block"}}>{t.badge}</div>
+      {/* Tier Overview */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",
+                    gap:12, marginBottom:20 }}>
+        {TIERS.map(t => {
+          const isUser = t.id === userTier.id;
+          return (
+            <div key={t.id} style={{ background: isUser ? `${t.color}18` : "rgba(0,20,40,0.85)",
+                                      border:`${isUser ? 2 : 1}px solid ${isUser ? t.color : t.color+"33"}`,
+                                      borderRadius:14, padding:16, transition:"all 0.3s",
+                                      position:"relative", overflow:"hidden" }}>
+              {isUser && (
+                <div style={{ position:"absolute", top:8, right:8, background:t.color,
+                               color:"#000", fontSize:9, fontWeight:900,
+                               borderRadius:6, padding:"2px 6px" }}>AKTIV</div>
+              )}
+              <div style={{ fontSize:24, marginBottom:8 }}>{t.icon}</div>
+              <div style={{ color:t.color, fontWeight:800, fontSize:16 }}>{t.name}</div>
+              <div style={{ color:"#556677", fontSize:11, marginBottom:10 }}>
+                {t.min.toLocaleString()}{t.max ? ` – ${t.max.toLocaleString()}` : "+"} QEMMA
               </div>
-            );
-          })}
-        </div>
-
-        {/* TABS */}
-        <div style={{display:"flex",gap:4,background:Q.bg1,borderRadius:10,padding:4,
-          border:`1px solid ${Q.plasma}22`,marginBottom:16,width:"fit-content"}}>
-          {[["stake","⚡ Stake"],["positions","💼 My Positions"],["calculator","🧮 Calculator"]].map(([t,l])=>(
-            <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"7px 18px",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
-              background:tab===t?`linear-gradient(135deg,${Q.plasma},${Q.gluon})`:"transparent",
-              color:tab===t?Q.bright:Q.dim}}>
-              {l}
-            </button>
-          ))}
-        </div>
-
-        {/* STAKE TAB */}
-        {tab==="stake" && (
-          <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:16}}>
-            <div style={{background:Q.bg1,borderRadius:14,padding:"22px",border:`1px solid ${selectedTier.color}33`}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
-                <span style={{fontSize:28}}>{selectedTier.icon}</span>
-                <div>
-                  <div style={{fontWeight:900,fontSize:18,color:selectedTier.color}}>{selectedTier.name} TIER</div>
-                  <div style={{color:Q.dim,fontSize:12}}>{selectedTier.lock>0?`${selectedTier.lock}-day lock`:"No lock period"} · Min: {selectedTier.min.toLocaleString()} QEMMA</div>
-                </div>
-                <div style={{marginLeft:"auto",fontSize:32,fontWeight:900,color:selectedTier.color,
-                  textShadow:`0 0 ${12+pulse*8}px ${selectedTier.color}`}}>
-                  {selectedTier.apy}% <span style={{fontSize:14}}>APY</span>
-                </div>
-              </div>
-
-              <div style={{marginBottom:16}}>
-                <div style={{fontSize:11,color:Q.dim,marginBottom:6}}>Amount to Stake (QEMMA)</div>
-                <div style={{display:"flex",gap:6}}>
-                  <input value={stakeAmount} onChange={e=>setStakeAmount(e.target.value)}
-                    placeholder={selectedTier.min.toString()}
-                    style={{flex:1,background:Q.bg2,border:`1px solid ${selectedTier.color}44`,borderRadius:10,
-                      padding:"12px 14px",color:Q.bright,fontSize:16,fontWeight:700,outline:"none",fontFamily:"monospace"}}/>
-                  <button onClick={()=>setStakeAmount("50000")} style={{
-                    padding:"12px 14px",borderRadius:10,border:`1px solid ${selectedTier.color}44`,
-                    background:`${selectedTier.color}20`,color:selectedTier.color,cursor:"pointer",fontWeight:700,fontSize:11}}>MAX</button>
-                </div>
-                <div style={{display:"flex",gap:6,marginTop:8}}>
-                  {[25,50,75,100].map(p=>(
-                    <button key={p} onClick={()=>setStakeAmount(String(Math.floor(50000*p/100)))} style={{
-                      flex:1,padding:"5px",borderRadius:8,border:`1px solid ${Q.plasma}33`,
-                      background:"transparent",color:Q.dim,cursor:"pointer",fontSize:10}}>{p}%</button>
-                  ))}
-                </div>
-                {amount>0 && <div style={{color:Q.dim,fontSize:11,marginTop:6}}>≈ ${(amount*price).toFixed(2)} USDT</div>}
-              </div>
-
-              {staked ? (
-                <div style={{textAlign:"center",padding:"20px",background:`${Q.lepton}10`,borderRadius:12,
-                  border:`1px solid ${Q.lepton}33`}}>
-                  <div style={{fontSize:32,marginBottom:8}}>🎉</div>
-                  <div style={{fontWeight:900,color:Q.lepton,fontSize:16}}>Successfully Staked!</div>
-                  <div style={{color:Q.dim,fontSize:12,marginTop:4}}>
-                    {stakeAmount} QEMMA locked for {selectedTier.lock||"∞"} days at {selectedTier.apy}% APY
+              <div style={{ fontSize:32, fontWeight:900, color:t.color }}>{t.apy}%</div>
+              <div style={{ color:"#334455", fontSize:11 }}>APY</div>
+              {/* Progress to next tier */}
+              {isUser && t.max && (
+                <div style={{ marginTop:10 }}>
+                  <div style={{ color:"#556677", fontSize:10, marginBottom:4 }}>
+                    Nächstes Tier: {(TIERS[t.id].min - USER_STAKE.amount).toLocaleString()} QEMMA fehlen
+                  </div>
+                  <div style={{ background:"rgba(0,0,0,0.3)", borderRadius:4, height:4 }}>
+                    <div style={{ width:`${((USER_STAKE.amount - t.min) / (t.max - t.min)) * 100}%`,
+                                  height:"100%", background:t.color, borderRadius:4 }} />
                   </div>
                 </div>
-              ) : (
-                <button onClick={handleStake} disabled={!amount||amount<selectedTier.min||staking} style={{
-                  width:"100%",padding:"14px",borderRadius:12,border:"none",cursor:amount>=selectedTier.min?"pointer":"not-allowed",
-                  background:amount>=selectedTier.min
-                    ?`linear-gradient(135deg,${selectedTier.color},${Q.gluon})`
-                    :`${Q.plasma}33`,
-                  color:Q.bright,fontWeight:800,fontSize:15,letterSpacing:1,
-                  boxShadow:amount>=selectedTier.min?`0 0 20px ${selectedTier.color}55`:"none"}}>
-                  {staking?"⏳ Staking...":amount<selectedTier.min?`Min: ${selectedTier.min.toLocaleString()} QEMMA`:`🔒 Stake ${selectedTier.name} Tier`}
-                </button>
               )}
             </div>
+          );
+        })}
+      </div>
 
-            {/* Rewards preview */}
-            <div style={{background:Q.bg1,borderRadius:14,padding:"20px",border:`1px solid ${selectedTier.color}33`}}>
-              <div style={{color:Q.quark,fontWeight:700,marginBottom:14}}>💰 Projected Rewards</div>
-              {[
-                {p:"Daily",   v:daily,  c:Q.mid},
-                {p:"Weekly",  v:weekly, c:Q.mid},
-                {p:"Monthly", v:monthly,c:Q.gluon},
-                {p:"Yearly",  v:yearly, c:selectedTier.color},
-              ].map(r=>(
-                <div key={r.p} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  padding:"10px 0",borderBottom:`1px solid ${Q.plasma}11`}}>
-                  <span style={{color:Q.dim,fontSize:13}}>{r.p}</span>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontWeight:700,color:r.c,fontSize:14}}>+{r.v} QEMMA</div>
-                    <div style={{fontSize:10,color:Q.dim}}>${(parseFloat(r.v)*price).toFixed(2)}</div>
-                  </div>
-                </div>
-              ))}
-              <div style={{marginTop:12,padding:"12px",background:`${selectedTier.color}10`,borderRadius:10,
-                border:`1px solid ${selectedTier.color}33`}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{color:Q.dim,fontSize:11}}>Principal</span>
-                  <span style={{color:Q.mid,fontSize:12}}>{amount.toLocaleString()} QEMMA</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between"}}>
-                  <span style={{color:Q.dim,fontSize:11}}>End of Period</span>
-                  <span style={{fontWeight:800,color:selectedTier.color,fontSize:14}}>{parseFloat(totalEnd).toLocaleString()} QEMMA</span>
-                </div>
-              </div>
+      {/* Compound Calculator */}
+      <div style={{ background:"rgba(0,20,40,0.85)", border:"1px solid rgba(0,255,255,0.12)",
+                    borderRadius:16, padding:20, marginBottom:20 }}>
+        <h3 style={{ margin:"0 0 16px", color:"#00ffff", fontSize:17 }}>🧮 Compound Calculator</h3>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+          {[
+            { label:"QEMMA Betrag", val:calcAmt, set:setCalcAmt, ph:"15000" },
+            { label:"Tage",         val:calcDays, set:setCalcDays, ph:"365" },
+          ].map(({ label, val, set, ph }) => (
+            <div key={label}>
+              <div style={{ color:"#556677", fontSize:12, marginBottom:6 }}>{label}</div>
+              <input value={val} onChange={e => set(e.target.value)} placeholder={ph}
+                type="number" min="0"
+                style={{ width:"100%", background:"rgba(255,255,255,0.05)",
+                         border:"1px solid rgba(0,255,255,0.15)", borderRadius:10,
+                         color:"#e0f0ff", padding:"10px 14px", fontSize:16,
+                         fontWeight:700, outline:"none", boxSizing:"border-box" }} />
             </div>
+          ))}
+        </div>
+        <div style={{ background:calcTier.color+"11", border:`1px solid ${calcTier.color}33`,
+                      borderRadius:12, padding:16 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:12 }}>
+            {[
+              { label:"Tier",          val:`${calcTier.icon} ${calcTier.name}`, color:calcTier.color },
+              { label:"APY",           val:`${calcTier.apy}%`,                  color:calcTier.color },
+              { label:"Einfacher Ertrag", val:`${calcReward.toFixed(2)} QEMMA`, color:"#00ff80" },
+              { label:"Mit Compound",  val:`${calcCompound.toFixed(2)} QEMMA`,  color:"#00ffff" },
+              { label:"Wert (@ $0.63)", val:`$${(calcCompound * 0.63).toFixed(0)}`, color:"#ffd700" },
+            ].map(({ label, val, color }) => (
+              <div key={label}>
+                <div style={{ color:"#556677", fontSize:11 }}>{label}</div>
+                <div style={{ color, fontWeight:800, fontSize:18, marginTop:4 }}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Stake More */}
+      <div style={{ background:"rgba(0,20,40,0.85)", border:"1px solid rgba(0,255,255,0.12)",
+                    borderRadius:16, padding:20 }}>
+        <h3 style={{ margin:"0 0 14px", color:"#00ffff", fontSize:17 }}>➕ Mehr staken</h3>
+        <div style={{ display:"flex", gap:12 }}>
+          <input value={stakeAmt} onChange={e => setStakeAmt(e.target.value)}
+            placeholder="QEMMA Menge eingeben..." type="number" min="0"
+            style={{ flex:1, background:"rgba(255,255,255,0.05)", border:"1px solid rgba(0,255,255,0.15)",
+                     borderRadius:10, color:"#e0f0ff", padding:"12px 16px", fontSize:16, outline:"none" }} />
+          <button onClick={handleStake} disabled={staking || !stakeAmt}
+            style={{ padding:"12px 24px", borderRadius:10, fontWeight:800, fontSize:15, cursor:"pointer",
+                     border:"none", background: stakeAmt && !staking
+                       ? "linear-gradient(135deg,#00ffff,#0080ff)" : "rgba(255,255,255,0.05)",
+                     color: stakeAmt && !staking ? "#000" : "#556677" }}>
+            {staking ? "⏳..." : "🏦 Staken"}
+          </button>
+        </div>
+        {stakeAmt && (
+          <div style={{ color:"#556677", fontSize:12, marginTop:8 }}>
+            Neues Tier nach Stake: {(TIERS.slice().reverse().find(t => (USER_STAKE.amount + parseInt(stakeAmt)) >= t.min) || TIERS[0]).name}
+            · APY: {(TIERS.slice().reverse().find(t => (USER_STAKE.amount + parseInt(stakeAmt)) >= t.min) || TIERS[0]).apy}%
           </div>
         )}
+      </div>
 
-        {/* MY POSITIONS */}
-        {tab==="positions" && (
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {myPositions.map((pos,i)=>{
-              const progress = (pos.days/parseInt(pos.lock))*100;
-              return (
-                <div key={i} style={{background:Q.bg1,borderRadius:14,padding:"20px",
-                  border:`1px solid ${pos.color}33`,
-                  boxShadow:`0 0 ${8+pulse*6}px ${pos.color}0a`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                    <div>
-                      <div style={{fontWeight:800,fontSize:16,color:pos.color}}>{pos.tier} TIER</div>
-                      <div style={{color:Q.dim,fontSize:11,marginTop:2}}>Lock: {pos.lock} · {pos.days} days elapsed</div>
-                    </div>
-                    <div style={{textAlign:"right"}}>
-                      <div style={{fontSize:22,fontWeight:900,color:pos.color}}>{pos.apy}%</div>
-                      <div style={{fontSize:10,color:Q.dim}}>APY</div>
-                    </div>
-                  </div>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
-                    {[
-                      {l:"Staked",   v:`${pos.staked.toLocaleString()} QEMMA`,c:Q.bright},
-                      {l:"Earned",   v:`+${pos.earned} QEMMA`,c:Q.lepton},
-                      {l:"Value",    v:`$${(pos.staked*price).toLocaleString()}`,c:pos.color},
-                    ].map((s,j)=>(
-                      <div key={j} style={{textAlign:"center",padding:"8px",background:`${s.c}08`,borderRadius:8}}>
-                        <div style={{fontSize:10,color:Q.dim,marginBottom:2}}>{s.l}</div>
-                        <div style={{fontWeight:700,color:s.c,fontSize:13}}>{s.v}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{marginBottom:6}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:Q.dim,marginBottom:4}}>
-                      <span>Lock Progress</span><span>{progress.toFixed(1)}%</span>
-                    </div>
-                    <div style={{height:6,background:`${pos.color}20`,borderRadius:3}}>
-                      <div style={{height:6,width:`${progress}%`,background:pos.color,borderRadius:3,
-                        boxShadow:`0 0 8px ${pos.color}88`}}/>
-                    </div>
-                  </div>
-                  <div style={{display:"flex",gap:8,marginTop:10}}>
-                    <button style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${Q.lepton}44`,
-                      background:`${Q.lepton}15`,color:Q.lepton,cursor:"pointer",fontWeight:700,fontSize:12}}>
-                      Claim {pos.earned} QEMMA
-                    </button>
-                    <button style={{padding:"8px 14px",borderRadius:8,border:`1px solid ${Q.dim}33`,
-                      background:"transparent",color:Q.dim,cursor:"pointer",fontSize:12}}>
-                      Compound
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* CALCULATOR */}
-        {tab==="calculator" && (
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            <div style={{background:Q.bg1,borderRadius:14,padding:"22px",border:`1px solid ${Q.plasma}22`}}>
-              <div style={{color:Q.quark,fontWeight:700,fontSize:14,marginBottom:16}}>🧮 Staking Calculator</div>
-              <div style={{marginBottom:14}}>
-                <div style={{fontSize:11,color:Q.dim,marginBottom:6}}>Amount (QEMMA)</div>
-                <input value={stakeAmount} onChange={e=>setStakeAmount(e.target.value)}
-                  style={{width:"100%",background:Q.bg2,border:`1px solid ${Q.plasma}44`,borderRadius:8,
-                    padding:"10px 12px",color:Q.bright,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"monospace"}}/>
-              </div>
-              <div style={{marginBottom:14}}>
-                <div style={{fontSize:11,color:Q.dim,marginBottom:6}}>Select Tier</div>
-                <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {TIERS.map(t=>(
-                    <button key={t.id} onClick={()=>setSelectedTier(t)} style={{
-                      padding:"8px 12px",borderRadius:8,border:`1px solid ${selectedTier.id===t.id?t.color:Q.plasma+"22"}`,
-                      background:selectedTier.id===t.id?`${t.color}20`:"transparent",
-                      color:selectedTier.id===t.id?t.color:Q.dim,cursor:"pointer",fontWeight:700,fontSize:12,
-                      display:"flex",justifyContent:"space-between"}}>
-                      <span>{t.icon} {t.name}</span><span>{t.apy}% APY</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div style={{background:Q.bg1,borderRadius:14,padding:"22px",border:`1px solid ${selectedTier.color}33`}}>
-              <div style={{color:Q.quark,fontWeight:700,fontSize:14,marginBottom:16}}>📊 Projection Results</div>
-              <div style={{textAlign:"center",padding:"16px",background:`${selectedTier.color}10`,borderRadius:12,
-                border:`1px solid ${selectedTier.color}33`,marginBottom:16}}>
-                <div style={{fontSize:11,color:Q.dim,marginBottom:4}}>Yearly Earnings</div>
-                <div style={{fontSize:32,fontWeight:900,color:selectedTier.color,
-                  textShadow:`0 0 ${12+pulse*8}px ${selectedTier.color}`}}>
-                  +{yearly} QEMMA
-                </div>
-                <div style={{color:Q.dim,fontSize:12}}>${(parseFloat(yearly)*price).toFixed(2)}</div>
-              </div>
-              {[
-                ["Daily",   daily,   Q.dim],
-                ["Weekly",  weekly,  Q.mid],
-                ["Monthly", monthly, Q.gluon],
-                ["6 Months",(amount*selectedTier.apy/100/2).toFixed(2), Q.plasma],
-                ["1 Year",  yearly,  selectedTier.color],
-              ].map(([p,v,c])=>(
-                <div key={p} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",
-                  borderBottom:`1px solid ${Q.plasma}11`,fontSize:12}}>
-                  <span style={{color:Q.dim}}>{p}</span>
-                  <span style={{color:c,fontWeight:700}}>+{parseFloat(v).toLocaleString()} QEMMA (${(parseFloat(v)*price).toFixed(2)})</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      <div style={{ textAlign:"center", marginTop:24, color:"#334455", fontSize:11 }}>
+        © 2026 Grigori Saks — Quantum Emma Staking · Patent Pending
       </div>
     </div>
   );
