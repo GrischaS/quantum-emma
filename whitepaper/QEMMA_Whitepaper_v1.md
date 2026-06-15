@@ -317,3 +317,13 @@ Quantum Emma represents a paradigm shift in AI-powered decentralized finance. Th
 *© 2026 Grigori Saks — Quantum Emma Enterprise Edition*  
 *All Rights Reserved — Patents Pending — Streng Vertraulich*  
 *grischasaks@gmail.com | https://quantum-emma-app.base44.app*
+
+---
+
+## Anhang: Autonomous AI Trading Platform Architecture
+*(Vollständige Spezifikation: [docs/AUTONOMOUS_TRADING_PLATFORM_BLUEPRINT.md](../docs/AUTONOMOUS_TRADING_PLATFORM_BLUEPRINT.md))*
+
+Die Quantum Emma Platform integriert einen vollständigen Neo-Broker + Krypto-Exchange + AI-Autotrader.
+Kernkomponenten: OMS, WebSocket Market Data Gateway, Custodial Wallet, KYC/AML, TR2 Recursive AI Orchestrator.
+
+© 2026 Grigori Saks — All Rights Reserved — Patent Pending
